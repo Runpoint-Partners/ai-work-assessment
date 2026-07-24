@@ -1,0 +1,42 @@
+{
+  "name": "ai-work-assessment",
+  "version": "6.0.0",
+  "description": "An agent-run, evidence-based profile of how you actually work with AI. Runs on your machine; the report is a local HTML file.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "ai-work-assessment": "bin/cli.mjs"
+  },
+  "exports": {
+    ".": "./src/validate.js",
+    "./render": "./src/render.js",
+    "./artifacts": "./src/artifacts.js",
+    "./curves": "./src/curves.js",
+    "./storage": "./src/storage.js",
+    "./config": "./src/config.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "docs",
+    "prompt.md",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "sync": "node scripts/sync-from-overflow.mjs",
+    "sync:check": "node scripts/sync-from-overflow.mjs --check"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "ai",
+    "assessment",
+    "claude-code",
+    "codex",
+    "agents",
+    "evidence"
+  ]
+}

@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>V6 fixture</title></head>
+<body>
+<h1>V6 Fixture</h1>
+<script type="application/json" id="profile-data">
+{
+  "schema_version": 8,
+  "prompt_version": 6,
+  "name": "Riley Okafor",
+  "focus": "Builds and operates the internal systems that keep field-service dispatch and inventory reconciliation honest",
+  "headline": "Builds and operates the internal systems that keep field-service dispatch and inventory reconciliation honest",
+  "generated_at": "2026-07-18",
+  "generated_by": { "agent": "claude-code", "model": "claude-opus-4-8" },
+  "source_coverage": {
+    "sessions": {
+      "status": "included",
+      "usable_sessions": 1055,
+      "from": "2025-10-06",
+      "to": "2026-07-18"
+    },
+    "github": {
+      "status": "included",
+      "collected_at": "2026-07-18",
+      "account_verified": true,
+      "authenticated_login": "rokafor-dev",
+      "accessible_repositories": 34,
+      "private_counts_available": true,
+      "search_complete": false,
+      "limitations": [
+        "Commit search is capped by the code search index and undercounts squashed merges.",
+        "Two employer organizations restrict private contribution counts."
+      ]
+    }
+  },
+  "windows": {
+    "claude": { "from": "2025-10-06", "to": "2026-07-18", "sessions": 842, "unknown_projects": 3 },
+    "codex": { "from": "2026-01-12", "to": "2026-07-11", "sessions": 213, "unknown_projects": 1 },
+    "other": [
+      { "tool": "gemini-cli", "from": "2026-03-02", "to": "2026-04-18", "sessions": 19, "unknown_projects": 0 }
+    ]
+  },
+  "cadence": {
+    "sessions_last_28d": 96,
+    "active_weeks_last_12": 11,
+    "sessions_per_observed_week": 15.4,
+    "last_session": "2026-07-18"
+  },
+  "activity_analysis": {
+    "coverage": {
+      "from": "2025-10-06",
+      "to": "2026-07-18",
+      "interactive_sessions": 1055,
+      "scheduled_runs": 24,
+      "active_days": 187,
+      "sessions_with_model_metadata": 402,
+      "sessions_with_event_timestamps": 1055,
+      "comparability": "comparable",
+      "source_windows": [
+        {
+          "source": "claude",
+          "from": "2025-10-06",
+          "to": "2026-07-18",
+          "sessions": 842,
+          "coverage_days": 286,
+          "retention": "full-available",
+          "limitations": [
+            "Sessions before 2025-10-06 predate the local history directory and are not represented."
+          ]
+        },
+        {
+          "source": "codex",
+          "from": "2026-01-12",
+          "to": "2026-07-11",
+          "sessions": 213,
+          "coverage_days": 181,
+          "retention": "retention-limited",
+          "limitations": [
+            "Rollout logs older than 180 days are pruned by the client, so early runs are absent."
+          ]
+        }
+      ],
+      "limitations": [
+        "Two agent sources with different retention windows are combined; month-over-month totals before 2026-01 reflect one source only."
+      ]
+    },
+    "monthly": [
+      {
+        "month": "2026-02",
+        "interactive_sessions": 118,
+        "scheduled_runs": 2,
+        "tool_categories": [
+          { "tag": "shell", "calls": 1840 },
+          { "tag": "code-edit", "calls": 1122 },
+          { "tag": "version-control", "calls": 486 }
+        ],
+        "models": [
+          { "name": "claude-sonnet-4-7", "sessions": 71 },
+          { "name": "gpt-5-codex", "sessions": 30 }
+        ]
+      },
+      {
+        "month": "2026-03",
+        "interactive_sessions": 141,
+        "scheduled_runs": 3,
+        "tool_categories": [
+          { "tag": "shell", "calls": 2216 },
+          { "tag": "code-edit", "calls": 1408 },
+          { "tag": "data-database", "calls": 372 }
+        ],
+        "models": [
+          { "name": "claude-sonnet-4-7", "sessions": 88 },
+          { "name": "gpt-5-codex", "sessions": 41 }
+        ]
+      },
+      {
+        "month": "2026-04",
+        "interactive_sessions": 127,
+        "scheduled_runs": 4,
+        "tool_categories": [
+          { "tag": "shell", "calls": 1975 },
+          { "tag": "code-edit", "calls": 1284 },
+          { "tag": "browser-computer-use", "calls": 214 }
+        ],
+        "models": [
+          { "name": "claude-sonnet-4-7", "sessions": 74 },
+          { "name": "gpt-5-codex", "sessions": 36 }
+        ]
+      },
+      {
+        "month": "2026-05",
+        "interactive_sessions": 152,
+        "scheduled_runs": 5,
+        "tool_categories": [
+          { "tag": "shell", "calls": 2388 },
+          { "tag": "code-edit", "calls": 1519 },
+          { "tag": "deploy-infra", "calls": 401 }
+        ],
+        "models": [
+          { "name": "claude-opus-4-8", "sessions": 63 },
+          { "name": "claude-sonnet-4-7", "sessions": 55 }
+        ]
+      },
+      {
+        "month": "2026-06",
+        "interactive_sessions": 164,
+        "scheduled_runs": 5,
+        "tool_categories": [
+          { "tag": "shell", "calls": 2571 },
+          { "tag": "code-edit", "calls": 1633 },
+          { "tag": "subagents", "calls": 288 }
+        ],
+        "models": [
+          { "name": "claude-opus-4-8", "sessions": 96 },
+          { "name": "gpt-5-codex", "sessions": 34 }
+        ]
+      },
+      {
+        "month": "2026-07",
+        "interactive_sessions": 103,
+        "scheduled_runs": 3,
+        "tool_categories": [
+          { "tag": "shell", "calls": 1604 },
+          { "tag": "code-edit", "calls": 1017 },
+          { "tag": "search-research", "calls": 259 }
+        ],
+        "models": [
+          { "name": "claude-opus-4-8", "sessions": 68 },
+          { "name": "gpt-5-codex", "sessions": 21 }
+        ]
+      }
+    ],
+    "concurrency": {
+      "method": "15-minute event-activity buckets",
+      "median_interactive_sessions_per_active_day": 4,
+      "average_concurrent_sessions": 1.3,
+      "p95_concurrent_sessions": 3,
+      "peak_concurrent_sessions": 9,
+      "multi_session_days": 121,
+      "covered_active_days": 187,
+      "scheduled_runs_excluded": 24,
+      "limitations": [
+        "Concurrency is inferred from event timestamps, not from process lifetime, so idle sessions are undercounted."
+      ]
+    },
+    "context_pressure": {
+      "token_limit_events": 3,
+      "affected_sessions": 3,
+      "compaction_events": 61,
+      "recovered_sessions": 2,
+      "repeated_failure_sessions": 1,
+      "limitations": [
+        "Only one source records compaction events, so the figure is a floor."
+      ]
+    },
+    "model_usage": [
+      {
+        "source": "claude",
+        "model": "claude-opus-4-8",
+        "sessions": 227,
+        "first_observed": "2026-05-04",
+        "last_observed": "2026-07-18",
+        "monthly": [
+          { "month": "2026-05", "sessions": 63 },
+          { "month": "2026-06", "sessions": 96 },
+          { "month": "2026-07", "sessions": 68 }
+        ]
+      },
+      {
+        "source": "codex",
+        "model": "gpt-5-codex",
+        "sessions": 162,
+        "first_observed": "2026-01-12",
+        "last_observed": "2026-07-11",
+        "monthly": [
+          { "month": "2026-06", "sessions": 34 },
+          { "month": "2026-07", "sessions": 21 }
+        ]
+      }
+    ],
+    "trend_status": "supported",
+    "comparability_note": "Session volume is comparable from 2026-01 onward, when both agent sources are present.",
+    "evolution_summary": "Early months are dominated by one-off scripting against inventory exports. From 2026-02 the work shifts into a single dispatch codebase with recurring deploy and database verification steps, and from 2026-05 into delegated multi-agent runs with a review step the owner keeps for themselves."
+  },
+  "github": {
+    "account_created_at": "2019-04-11",
+    "earliest_observed_contribution": "2021-03",
+    "latest_observed_contribution": "2026-07",
+    "contribution_years": [2023, 2024, 2025, 2026],
+    "active_years": 4,
+    "active_months_observed": 34,
+    "active_months_last_12": 11,
+    "indexed_authored_activity": {
+      "query": "author:rokafor-dev",
+      "commits": 2184,
+      "commits_last_12": 1462,
+      "incomplete_results": false,
+      "annual_commits": [
+        { "year": 2023, "commits": 168 },
+        { "year": 2024, "commits": 341 },
+        { "year": 2025, "commits": 622 },
+        { "year": 2026, "commits": 1053 }
+      ],
+      "authored_pull_requests": 118,
+      "authored_pull_requests_last_12": 74,
+      "authored_issues": 21,
+      "reviewed_pull_requests": 46,
+      "reviewed_pull_requests_last_12": 31,
+      "limitations": [
+        "Squash-merged commits are attributed to the merging account, not the author."
+      ]
+    },
+    "contribution_graph": {
+      "qualifying_commits": 1731,
+      "qualifying_pull_requests": 74,
+      "qualifying_reviews": 31,
+      "qualifying_issues": 18,
+      "repositories_contributed_to": 11,
+      "annual": [
+        { "year": 2023, "commits": 141, "pull_requests": 9, "reviews": 2, "issues": 3, "repositories": 3 },
+        { "year": 2024, "commits": 288, "pull_requests": 17, "reviews": 6, "issues": 4, "repositories": 5 },
+        { "year": 2025, "commits": 519, "pull_requests": 31, "reviews": 11, "issues": 6, "repositories": 8 },
+        { "year": 2026, "commits": 783, "pull_requests": 17, "reviews": 12, "issues": 5, "repositories": 6 }
+      ],
+      "definition": "Contribution-graph events attributable to the verified account"
+    },
+    "definition_audit": {
+      "status": "minor-divergence",
+      "summary": "The indexed commit count runs about 26 percent above the contribution graph because the search index includes commits to repositories that are not counted as contributions, notably two archived forks."
+    },
+    "activity_characterization": {
+      "version": 3,
+      "label": "sustained-recent-activity",
+      "dimensions": {
+        "continuity": {
+          "status": "supported",
+          "evidence": "Activity in 11 of the last 12 months across four calendar years."
+        },
+        "activity_context": {
+          "status": "supported",
+          "evidence": "Commits concentrated in two long-lived work repositories."
+        },
+        "collaboration": {
+          "status": "supported",
+          "evidence": "31 reviewed pull requests in the last 12 months."
+        },
+        "stewardship_optional": {
+          "status": "partial",
+          "evidence": "Issue triage is visible but release and maintenance ownership is not."
+        }
+      },
+      "conclusion": "Recent activity is sustained and collaborative, with stewardship only partly evidenced."
+    },
+    "language_exposure": [
+      { "tag": "typescript", "label": "TypeScript", "active_years": 4, "first_observed": "2023", "last_observed": "2026" },
+      { "tag": "python", "label": "Python", "active_years": 3, "first_observed": "2024", "last_observed": "2026" },
+      { "tag": "sql", "label": "SQL", "active_years": 3, "first_observed": "2024", "last_observed": "2026" }
+    ],
+    "limitations": [
+      "Private organization repositories are counted but not named.",
+      "Language exposure is derived from repository metadata, not from line-level authorship."
+    ]
+  },
+  "observed_history": [
+    {
+      "from": "2021-03",
+      "to": "2026-07",
+      "label": "GitHub activity",
+      "sources": ["github"],
+      "summary": "Continuous public and private repository activity, concentrated in the last three years."
+    },
+    {
+      "from": "2025-10",
+      "to": "2026-07",
+      "label": "Local agent sessions",
+      "sources": ["claude", "codex"],
+      "summary": "Interactive assistant sessions retained locally across two clients."
+    }
+  ],
+  "work_arcs": [
+    {
+      "id": "arc-1",
+      "label": "Field-service dispatch platform",
+      "from": "2025-11",
+      "to": "2026-07",
+      "sources": ["sessions", "github"],
+      "delivery_state": "ongoing-operation",
+      "system_context": "established-system",
+      "primary_surface": "workflow-integration",
+      "secondary_surface": "application-software",
+      "change_type": "new-capability",
+      "responsibility": "system-owner",
+      "reviewer_governor": true,
+      "confidence": "high",
+      "evidence": [
+        "Dispatch assignment rules moved from a spreadsheet into a scheduled service the owner deploys and monitors.",
+        "Recurring sessions across nine months cover routing changes, on-call triage, and technician feedback."
+      ],
+      "counterevidence": [
+        "No evidence of a second maintainer or of handover documentation."
+      ]
+    },
+    {
+      "id": "arc-2",
+      "label": "Inventory reconciliation service",
+      "from": "2026-01",
+      "to": "2026-06",
+      "sources": ["sessions"],
+      "delivery_state": "live-use",
+      "system_context": "early-system",
+      "primary_surface": "data-models",
+      "secondary_surface": "workflow-integration",
+      "change_type": "integration",
+      "responsibility": "workstream-owner",
+      "reviewer_governor": true,
+      "confidence": "high",
+      "evidence": [
+        "Nightly reconciliation between the warehouse system of record and the vendor feed, with a discrepancy report.",
+        "Schema and matching rules were revised three times in response to real mismatches."
+      ],
+      "counterevidence": [
+        "Volume and error rates after launch are described in conversation but not shown."
+      ]
+    },
+    {
+      "id": "arc-3",
+      "label": "Customer portal self-service redesign",
+      "from": "2026-02",
+      "to": "2026-05",
+      "sources": ["sessions", "github"],
+      "delivery_state": "live-use",
+      "system_context": "established-system",
+      "primary_surface": "experience-interface",
+      "secondary_surface": "",
+      "change_type": "experience-improvement",
+      "responsibility": "scoped-contributor",
+      "reviewer_governor": false,
+      "confidence": "medium",
+      "evidence": [
+        "Rebuilt the appointment-change flow and the status page against an existing design system.",
+        "Work is reviewed and merged by another engineer on the portal team."
+      ],
+      "counterevidence": [
+        "Design decisions and acceptance criteria came from outside the sessions."
+      ]
+    },
+    {
+      "id": "arc-4",
+      "label": "Billing migration to a ledger schema",
+      "from": "2026-03",
+      "to": "2026-07",
+      "sources": ["sessions", "github"],
+      "delivery_state": "ongoing-operation",
+      "system_context": "mature-constrained",
+      "primary_surface": "data-models",
+      "secondary_surface": "platform-infrastructure",
+      "change_type": "migration",
+      "responsibility": "workstream-owner",
+      "reviewer_governor": true,
+      "confidence": "high",
+      "evidence": [
+        "Dual-write and backfill sequence with a documented cutover and a rollback path that was exercised once in staging.",
+        "Reconciliation queries were run against both schemas before each phase advanced."
+      ],
+      "counterevidence": [
+        "Financial sign-off on the migrated totals is referenced but not visible."
+      ]
+    },
+    {
+      "id": "arc-5",
+      "label": "On-call triage automation",
+      "from": "2026-04",
+      "to": "2026-07",
+      "sources": ["sessions"],
+      "delivery_state": "live-use",
+      "system_context": "established-system",
+      "primary_surface": "product-operations",
+      "secondary_surface": "",
+      "change_type": "incident-recovery",
+      "responsibility": "system-owner",
+      "reviewer_governor": true,
+      "confidence": "medium",
+      "evidence": [
+        "Alert enrichment and first-response runbook steps were automated after a dispatch outage.",
+        "The owner kept an explicit approval step before any restart or scale action."
+      ],
+      "counterevidence": [
+        "Only two real incidents are covered, so the recovery pattern is thinly evidenced."
+      ]
+    },
+    {
+      "id": "arc-6",
+      "label": "Warehouse telemetry pipeline prototype",
+      "from": "2026-05",
+      "to": "2026-07",
+      "sources": ["sessions"],
+      "delivery_state": "working-prototype",
+      "system_context": "greenfield",
+      "primary_surface": "platform-infrastructure",
+      "secondary_surface": "data-models",
+      "change_type": "new-capability",
+      "responsibility": "scoped-contributor",
+      "reviewer_governor": false,
+      "confidence": "medium",
+      "evidence": [
+        "Streaming ingest from handheld scanners into a columnar store, running against real traffic in a staging account."
+      ],
+      "counterevidence": [
+        "No production traffic, cost model, or retention policy is established."
+      ]
+    }
+  ],
+  "badges": {
+    "technical_chops": [
+      {
+        "tag": "production-shipper",
+        "label": "Production shipper",
+        "proof_stars": 3,
+        "status": "earned",
+        "confidence": "high",
+        "arc_ids": ["arc-1", "arc-3", "arc-4"],
+        "evidence": "Three systems reached live use and stayed there, including a billing migration with a rehearsed rollback path.",
+        "proof_basis": {
+          "arc_count": 3,
+          "system_count": 3,
+          "span_days": 244,
+          "direct_outcome_count": 3,
+          "independent_observation_count": 8
+        },
+        "next_star_evidence": ""
+      },
+      {
+        "tag": "systems-architect",
+        "label": "Systems architect",
+        "proof_stars": 3,
+        "status": "earned",
+        "confidence": "high",
+        "arc_ids": ["arc-1", "arc-4", "arc-6"],
+        "evidence": "Chose and defended data models and cutover sequencing across a dispatch platform, a ledger migration, and a telemetry pipeline.",
+        "proof_basis": {
+          "arc_count": 3,
+          "system_count": 3,
+          "span_days": 244,
+          "direct_outcome_count": 2,
+          "independent_observation_count": 6
+        },
+        "next_star_evidence": ""
+      },
+      {
+        "tag": "context-engineer",
+        "label": "Context engineer",
+        "proof_stars": 2,
+        "status": "earned",
+        "confidence": "medium",
+        "arc_ids": ["arc-1", "arc-2"],
+        "evidence": "Maintains a repository brief and schema notes that are fed to the agent at the start of recurring sessions.",
+        "proof_basis": {
+          "arc_count": 2,
+          "system_count": 2,
+          "span_days": 182,
+          "direct_outcome_count": 1,
+          "independent_observation_count": 4
+        },
+        "next_star_evidence": "A third system where reusable context materially shortened onboarding, with the before-and-after visible in sessions."
+      },
+      {
+        "tag": "agent-orchestrator",
+        "label": "Agent orchestrator",
+        "proof_stars": 2,
+        "status": "earned",
+        "confidence": "medium",
+        "arc_ids": ["arc-1", "arc-5"],
+        "evidence": "Delegates parallel investigation and implementation runs, then reviews and integrates the results personally.",
+        "proof_basis": {
+          "arc_count": 2,
+          "system_count": 2,
+          "span_days": 105,
+          "direct_outcome_count": 1,
+          "independent_observation_count": 5
+        },
+        "next_star_evidence": "Evidence that a delegated run shipped without rework, on a system the owner did not write."
+      },
+      {
+        "tag": "prototyper",
+        "label": "Prototyper",
+        "proof_stars": 1,
+        "status": "emerging",
+        "confidence": "medium",
+        "arc_ids": ["arc-6"],
+        "evidence": "One greenfield telemetry prototype reached staging traffic within eight weeks.",
+        "proof_basis": {
+          "arc_count": 1,
+          "system_count": 1,
+          "span_days": 61,
+          "direct_outcome_count": 0,
+          "independent_observation_count": 2
+        },
+        "next_star_evidence": "A second greenfield build that reached a decision point, showing the prototype was used to choose rather than to demonstrate."
+      }
+    ],
+    "business_know_how": [
+      {
+        "tag": "workflow-architect",
+        "label": "Workflow architect",
+        "proof_stars": 3,
+        "status": "earned",
+        "confidence": "high",
+        "arc_ids": ["arc-1", "arc-2", "arc-5"],
+        "evidence": "Redesigned dispatch assignment, nightly reconciliation, and on-call first response as explicit workflows with owners and exceptions.",
+        "proof_basis": {
+          "arc_count": 3,
+          "system_count": 3,
+          "span_days": 244,
+          "direct_outcome_count": 3,
+          "independent_observation_count": 7
+        },
+        "next_star_evidence": ""
+      },
+      {
+        "tag": "clear-communicator",
+        "label": "Clear communicator",
+        "proof_stars": 2,
+        "status": "earned",
+        "confidence": "medium",
+        "arc_ids": ["arc-3", "arc-4"],
+        "evidence": "Wrote the cutover plan and the portal change summary that non-engineers used to approve each phase.",
+        "proof_basis": {
+          "arc_count": 2,
+          "system_count": 2,
+          "span_days": 152,
+          "direct_outcome_count": 2,
+          "independent_observation_count": 3
+        },
+        "next_star_evidence": "A written artifact that changed a stakeholder decision, with the decision visible in the same record."
+      },
+      {
+        "tag": "adoption-operator",
+        "label": "Adoption operator",
+        "proof_stars": 2,
+        "status": "earned",
+        "confidence": "medium",
+        "arc_ids": ["arc-1", "arc-3"],
+        "evidence": "Ran technician feedback rounds and adjusted dispatch rules and portal copy in response to real usage complaints.",
+        "proof_basis": {
+          "arc_count": 2,
+          "system_count": 2,
+          "span_days": 198,
+          "direct_outcome_count": 1,
+          "independent_observation_count": 4
+        },
+        "next_star_evidence": "Usage or retention numbers before and after a change the owner made, rather than reported reactions."
+      }
+    ],
+    "good_judgment": [
+      {
+        "tag": "verification-first",
+        "label": "Verification first",
+        "proof_stars": 3,
+        "status": "earned",
+        "confidence": "high",
+        "arc_ids": ["arc-1", "arc-2", "arc-4"],
+        "evidence": "Reconciliation queries, staged rollback rehearsal, and post-deploy checks appear before each phase advances, not after failures.",
+        "proof_basis": {
+          "arc_count": 3,
+          "system_count": 3,
+          "span_days": 244,
+          "direct_outcome_count": 3,
+          "independent_observation_count": 9
+        },
+        "next_star_evidence": ""
+      },
+      {
+        "tag": "tradeoff-navigator",
+        "label": "Tradeoff navigator",
+        "proof_stars": 2,
+        "status": "earned",
+        "confidence": "medium",
+        "arc_ids": ["arc-4", "arc-6"],
+        "evidence": "Chose a slower dual-write migration over a single cutover, and deferred the telemetry retention decision rather than guessing.",
+        "proof_basis": {
+          "arc_count": 2,
+          "system_count": 2,
+          "span_days": 122,
+          "direct_outcome_count": 1,
+          "independent_observation_count": 4
+        },
+        "next_star_evidence": "A reversed decision with the cost of the reversal stated, showing the tradeoff was tracked after the fact."
+      },
+      {
+        "tag": "systems-steward",
+        "label": "Systems steward",
+        "proof_stars": 2,
+        "status": "earned",
+        "confidence": "medium",
+        "arc_ids": ["arc-1", "arc-4"],
+        "evidence": "Keeps the dispatch service and the ledger migration running after launch, including dependency upgrades and alert tuning.",
+        "proof_basis": {
+          "arc_count": 2,
+          "system_count": 2,
+          "span_days": 244,
+          "direct_outcome_count": 2,
+          "independent_observation_count": 5
+        },
+        "next_star_evidence": "Evidence of handing a system to another owner with the runbook and alerts intact."
+      }
+    ]
+  },
+  "badge_audit": {
+    "candidate_count": 14,
+    "awarded_count": 11,
+    "not_awarded": [
+      {
+        "tag": "frontend-crafter",
+        "reason": "Interface work is real but scoped to an existing design system under another engineer's review.",
+        "missing_evidence": "Interface decisions the owner made and defended, or accessibility and performance work with a measured result."
+      },
+      {
+        "tag": "value-translator",
+        "reason": "Business outcomes are described in conversation but never tied to a number the owner produced.",
+        "missing_evidence": "A cost, revenue, or time figure attributed to a specific change, visible in the same source."
+      },
+      {
+        "tag": "recovery-operator",
+        "reason": "Only two incidents appear, and both were handled with an approval step rather than under time pressure.",
+        "missing_evidence": "An unplanned failure the owner diagnosed and resolved, with the timeline and the fix in the record."
+      }
+    ],
+    "evidence_reuse_notes": [
+      "The billing migration (arc-4) supports production-shipper, verification-first, and tradeoff-navigator on different grounds: it shipped, it was checked before advancing, and it was chosen over a faster option.",
+      "The dispatch platform (arc-1) is the only source for systems-steward, which is why that badge is held at two stars.",
+      "The telemetry prototype (arc-6) is counted once for prototyper and once for tradeoff-navigator; no other badge draws on it alone."
+    ]
+  },
+  "project_role": {
+    "best_fit": "Owner of an internal operational system that already has users and unsettled data, where the same person is expected to design the schema, ship the change, and stay on call for it.",
+    "less_like": [
+      "Design-led product surface work",
+      "Research or model-training engineering",
+      "Large-team platform work with a separate on-call rotation"
+    ]
+  },
+  "working_style": {
+    "build_review_operate": {
+      "finding": "Builds and operates the same systems, and reviews delegated work personally before it lands.",
+      "evidence": "Dispatch and billing arcs each show implementation, deploy, and post-launch tuning by the same owner.",
+      "sources": ["sessions", "github"]
+    },
+    "agent_collaboration": {
+      "finding": "Delegates investigation and first-draft implementation, but keeps integration and the final judgment.",
+      "evidence": "Parallel subagent runs appear from 2026-05, always followed by a manual review pass in the same session.",
+      "sources": ["sessions"]
+    },
+    "verification_discipline": {
+      "finding": "Checks state against the system of record before advancing, rather than trusting the change.",
+      "evidence": "Reconciliation queries and staged rollback rehearsal precede each migration phase.",
+      "sources": ["sessions"]
+    },
+    "maintenance_orientation": {
+      "finding": "Stays with systems after launch; dependency upgrades and alert tuning recur months after delivery.",
+      "evidence": "Dispatch service sessions continue for nine months past first production use.",
+      "sources": ["sessions", "github"]
+    }
+  },
+  "interaction_profile": {
+    "summary": "Frames work as a named outcome with the constraint stated up front, then narrows through short correction cycles rather than long specifications. Confirmation is explicit and usually tied to a check that was run.",
+    "dimensions": [
+      {
+        "tag": "task-framing",
+        "label": "Task framing",
+        "pattern": "Outcome plus constraint, stated first",
+        "proof_stars": 3,
+        "evidence": "Opening messages name the system, the desired end state, and what must not change.",
+        "counterevidence": "Exploratory sessions on the telemetry prototype open without a constraint.",
+        "sources": ["sessions"]
+      },
+      {
+        "tag": "context-strategy",
+        "label": "Context strategy",
+        "pattern": "Curated brief over bulk paste",
+        "proof_stars": 2,
+        "evidence": "A maintained repository brief and schema notes are supplied instead of whole files.",
+        "counterevidence": "Debugging sessions still paste long logs without trimming.",
+        "sources": ["sessions"]
+      },
+      {
+        "tag": "direction-exploration",
+        "label": "Direction and exploration",
+        "pattern": "Directs by default, explores when the schema is unsettled",
+        "proof_stars": 2,
+        "evidence": "Options are requested explicitly during the ledger design and not elsewhere.",
+        "counterevidence": "Few sessions show a direction being abandoned after exploration.",
+        "sources": ["sessions"]
+      },
+      {
+        "tag": "correction-recovery",
+        "label": "Correction and recovery",
+        "pattern": "Short, specific corrections against observed output",
+        "proof_stars": 3,
+        "evidence": "Corrections cite the failing query or the wrong row rather than restating the goal.",
+        "counterevidence": "Two sessions restart from scratch instead of correcting.",
+        "sources": ["sessions"]
+      },
+      {
+        "tag": "feedback-confirmation",
+        "label": "Feedback and confirmation",
+        "pattern": "Confirms with a check, not with approval",
+        "proof_stars": 2,
+        "evidence": "Acceptance is usually a pasted result from a verification query.",
+        "counterevidence": "Portal work is confirmed by another engineer's review, not by the owner.",
+        "sources": ["sessions"]
+      }
+    ],
+    "limitations": [
+      "Interaction patterns are drawn from one agent client with full transcript retention; the second client retains only recent runs."
+    ]
+  },
+  "profile_strengtheners": [
+    {
+      "claim": "Recovery under pressure",
+      "evidence_needed": "An unplanned production failure with the diagnosis and fix visible in one session.",
+      "why_it_matters": "Buyers staffing an on-call system want evidence of recovery, not only of prevention."
+    },
+    {
+      "claim": "Business outcome ownership",
+      "evidence_needed": "A cost or time figure attributable to a specific shipped change.",
+      "why_it_matters": "Without a number, operational work reads as maintenance rather than as leverage."
+    },
+    {
+      "claim": "Handover and second maintainer",
+      "evidence_needed": "A system transferred to another owner with runbook and alerts intact.",
+      "why_it_matters": "Sole ownership of a live system is a staffing risk as much as a strength."
+    }
+  ],
+  "tools": [
+    { "tag": "claude-code", "label": "Claude Code", "kind": "agent", "familiarity": "primary", "sessions": 842, "evidence": "Primary implementation and review surface across every arc." },
+    { "tag": "codex", "label": "Codex", "kind": "agent", "familiarity": "frequent", "sessions": 213, "evidence": "Second opinion on migrations and long refactors." },
+    { "tag": "gemini-cli", "label": "Gemini CLI", "kind": "agent", "familiarity": "occasional", "sessions": 19, "evidence": "Short evaluation window in early 2026; not adopted." },
+    { "tag": "postgres", "label": "PostgreSQL", "kind": "platform", "familiarity": "primary", "sessions": 388, "evidence": "Schema design, reconciliation queries, and migration verification." },
+    { "tag": "terraform", "label": "Terraform", "kind": "environment", "familiarity": "occasional", "sessions": 47, "evidence": "Staging account for the telemetry prototype." },
+    { "tag": "github-actions", "label": "GitHub Actions", "kind": "automation", "familiarity": "frequent", "sessions": 164, "evidence": "Deploy and nightly reconciliation runs." }
+  ],
+  "agent_practice": {
+    "tool_call_coverage": [
+      {
+        "source": "claude",
+        "from": "2026-02-01",
+        "to": "2026-07-18",
+        "sessions_scanned": 805,
+        "sessions_with_tool_metadata": 612,
+        "observed_calls": 24118,
+        "limitations": [
+          "Tool metadata is absent from sessions that predate the current client version."
+        ]
+      },
+      {
+        "source": "codex",
+        "from": "2026-01-12",
+        "to": "2026-07-11",
+        "sessions_scanned": 213,
+        "sessions_with_tool_metadata": 141,
+        "observed_calls": 5290,
+        "limitations": [
+          "Rollout logs record command invocations but not per-tool categories."
+        ]
+      }
+    ],
+    "tool_categories": [
+      { "tag": "shell", "label": "Shell", "intensity": "habitual", "active_sessions": 574, "observed_calls": 12594, "sources": ["claude", "codex"], "evidence": "Test runs, migrations, and deploy commands in nearly every session." },
+      { "tag": "code-edit", "label": "Code editing", "intensity": "habitual", "active_sessions": 531, "observed_calls": 7983, "sources": ["claude", "codex"], "evidence": "Direct edits across two long-lived repositories." },
+      { "tag": "data-database", "label": "Database", "intensity": "recurring", "active_sessions": 288, "observed_calls": 3117, "sources": ["claude"], "evidence": "Reconciliation and verification queries against staging and production replicas." },
+      { "tag": "version-control", "label": "Version control", "intensity": "recurring", "active_sessions": 402, "observed_calls": 2841, "sources": ["claude", "codex"], "evidence": "Branch, review, and merge operations tied to shipped work." },
+      { "tag": "deploy-infra", "label": "Deploy and infrastructure", "intensity": "recurring", "active_sessions": 176, "observed_calls": 1408, "sources": ["claude"], "evidence": "Scheduled deploys and staging environment changes." },
+      { "tag": "subagents", "label": "Subagents", "intensity": "situational", "active_sessions": 94, "observed_calls": 612, "sources": ["claude"], "evidence": "Parallel investigation runs from 2026-05 onward." },
+      { "tag": "browser-computer-use", "label": "Browser control", "intensity": "situational", "active_sessions": 61, "observed_calls": 447, "sources": ["claude"], "evidence": "Verifying portal flows against a running staging build." }
+    ],
+    "reusable_assets": [
+      { "tag": "reconcile-check", "label": "reconcile-check command", "kind": "command", "relationship": "created", "active_sessions": 88, "observed_uses": 213, "sources": ["claude"], "evidence": "Runs the standing reconciliation query set against both schemas." },
+      { "tag": "repo-brief", "label": "Repository brief", "kind": "skill", "relationship": "created", "active_sessions": 146, "observed_uses": 146, "sources": ["claude", "codex"], "evidence": "Maintained context file loaded at the start of recurring sessions." },
+      { "tag": "deploy-guard", "label": "deploy-guard hook", "kind": "hook", "relationship": "created", "active_sessions": 71, "observed_uses": 71, "sources": ["claude"], "evidence": "Blocks deploy commands outside the staging account without confirmation." },
+      { "tag": "pg-mcp", "label": "Postgres MCP connector", "kind": "mcp", "relationship": "used", "active_sessions": 194, "observed_uses": 1633, "sources": ["claude"], "evidence": "Read-only query access to the reporting replica." },
+      { "tag": "migration-eval", "label": "Migration parity eval", "kind": "eval", "relationship": "adapted", "active_sessions": 33, "observed_uses": 41, "sources": ["claude"], "evidence": "Adapted from a public example to compare row counts and sums across schemas." }
+    ],
+    "permission_practice": {
+      "coverage": [
+        {
+          "source": "claude",
+          "sessions_scanned": 805,
+          "sessions_with_metadata": 612,
+          "limitations": [
+            "Permission decisions are recorded only when the client prompts, not when a rule pre-approves."
+          ]
+        },
+        {
+          "source": "codex",
+          "sessions_scanned": 213,
+          "sessions_with_metadata": 96,
+          "limitations": [
+            "Approval mode is inferred from the invocation, not recorded per action."
+          ]
+        }
+      ],
+      "modes": [
+        { "source": "claude", "mode": "accept-edits inside the work repository", "scope": "user-selected", "sessions": 588, "events": 0 },
+        { "source": "claude", "mode": "ask before shell and deploy", "scope": "user-selected", "sessions": 217, "events": 341 },
+        { "source": "codex", "mode": "workspace-write", "scope": "environment-inherited", "sessions": 213, "events": 0 }
+      ],
+      "elevated_requests": [
+        { "source": "claude", "category": "deployment", "requests": 118, "approved": 111, "denied": 7, "unknown_outcome": 0 },
+        { "source": "claude", "category": "network", "requests": 44, "approved": 39, "denied": 3, "unknown_outcome": 2 },
+        { "source": "claude", "category": "filesystem", "requests": 96, "approved": 92, "denied": 4, "unknown_outcome": 0 }
+      ],
+      "finding": "Keeps a narrow autonomous lane and an explicit gate at the boundary: edits inside the work repository are pre-approved, while anything that touches a deploy target, an external network call, or a path outside the repository is prompted and answered case by case.",
+      "guardrail_pattern": "A hook blocks deploy commands outside the staging account unless confirmed in the session.",
+      "limitations": [
+        "Denial reasons are not recorded, so the seven refused deployments cannot be characterized."
+      ]
+    }
+  },
+  "skills": [
+    { "tag": "typescript", "label": "TypeScript", "category": "language", "familiarity": "very-familiar", "authorship": "direct", "sessions": 611, "first_observed": "2025-10", "last_observed": "2026-07", "evidence": "Primary implementation language across the dispatch and portal work." },
+    { "tag": "postgres", "label": "PostgreSQL", "category": "database", "familiarity": "very-familiar", "authorship": "direct", "sessions": 388, "first_observed": "2025-11", "last_observed": "2026-07", "evidence": "Schema design, indexing, and reconciliation queries during the ledger migration." },
+    { "tag": "python", "label": "Python", "category": "language", "familiarity": "familiar", "authorship": "directed-reviewed", "sessions": 174, "first_observed": "2025-10", "last_observed": "2026-06", "evidence": "Inventory feed parsing and one-off reconciliation scripts." },
+    { "tag": "node", "label": "Node.js services", "category": "runtime", "familiarity": "very-familiar", "authorship": "direct", "sessions": 447, "first_observed": "2025-10", "last_observed": "2026-07", "evidence": "Dispatch service and scheduled reconciliation jobs." },
+    { "tag": "react", "label": "React", "category": "framework", "familiarity": "familiar", "authorship": "directed-reviewed", "sessions": 132, "first_observed": "2026-02", "last_observed": "2026-05", "evidence": "Portal appointment-change flow against an existing design system." },
+    { "tag": "terraform", "label": "Terraform", "category": "infrastructure", "familiarity": "some", "authorship": "mixed", "sessions": 47, "first_observed": "2026-05", "last_observed": "2026-07", "evidence": "Staging account for the telemetry prototype only." },
+    { "tag": "kafka", "label": "Streaming ingest", "category": "infrastructure", "familiarity": "some", "authorship": "mixed", "sessions": 38, "first_observed": "2026-05", "last_observed": "2026-07", "evidence": "Handheld scanner telemetry into a columnar store, prototype scope." },
+    { "tag": "observability", "label": "Alerting and dashboards", "category": "practice", "familiarity": "familiar", "authorship": "direct", "sessions": 121, "first_observed": "2026-01", "last_observed": "2026-07", "evidence": "Alert tuning and dashboards for dispatch and reconciliation failures." }
+  ],
+  "domains": [
+    {
+      "tag": "field-service-operations",
+      "label": "Field-service dispatch and scheduling",
+      "depth": "substantial",
+      "evidence_volume": "high",
+      "session_count": 462,
+      "first_observed": "2025-11",
+      "last_observed": "2026-07",
+      "problem_types": [
+        "Assignment and routing under changing technician availability",
+        "Exception handling when a job cannot be completed",
+        "Reconciling promised windows against actual arrival"
+      ],
+      "operating_objects": ["Jobs", "Technicians", "Service windows", "Routes", "Exception queues"],
+      "constraints": ["Union scheduling rules", "Customer-facing time commitments", "Offline handheld clients"],
+      "staffing_implication": "Can own dispatch logic and its exceptions without a separate operations analyst.",
+      "source": "sessions",
+      "evidence": "Nine months of recurring work on assignment rules, exception queues, and technician feedback."
+    },
+    {
+      "tag": "inventory-reconciliation",
+      "label": "Inventory and supply reconciliation",
+      "depth": "substantial",
+      "evidence_volume": "medium",
+      "session_count": 218,
+      "first_observed": "2026-01",
+      "last_observed": "2026-06",
+      "problem_types": [
+        "Matching a vendor feed against a system of record",
+        "Explaining discrepancies without a shared identifier"
+      ],
+      "operating_objects": ["Stock keeping units", "Vendor feeds", "Discrepancy reports", "Warehouse locations"],
+      "constraints": ["Nightly batch window", "No vendor-side identifier"],
+      "staffing_implication": "Suited to reconciliation work where the matching rules are still being discovered.",
+      "source": "sessions",
+      "evidence": "Three revisions of the matching rules in response to real mismatches."
+    },
+    {
+      "tag": "billing-ledger",
+      "label": "Billing and ledger data",
+      "depth": "substantial",
+      "evidence_volume": "medium",
+      "session_count": 196,
+      "first_observed": "2026-03",
+      "last_observed": "2026-07",
+      "problem_types": [
+        "Migrating financial records without losing totals",
+        "Proving parity between two schemas mid-migration"
+      ],
+      "operating_objects": ["Invoices", "Ledger entries", "Adjustments", "Reconciliation reports"],
+      "constraints": ["Mature system with downstream consumers", "No acceptable data-loss window"],
+      "staffing_implication": "Can run a phased financial migration, though sign-off still needs a finance owner.",
+      "source": "sessions",
+      "evidence": "Dual-write, backfill, and parity checks documented across five months."
+    },
+    {
+      "tag": "internal-tooling",
+      "label": "Internal operational tooling",
+      "depth": "substantial",
+      "evidence_volume": "high",
+      "session_count": 511,
+      "first_observed": "2025-10",
+      "last_observed": "2026-07",
+      "problem_types": [
+        "Replacing spreadsheet workflows with services",
+        "Making operational state inspectable by non-engineers"
+      ],
+      "operating_objects": ["Runbooks", "Dashboards", "Scheduled jobs", "Alert rules"],
+      "constraints": ["Small operations team", "No dedicated on-call rotation"],
+      "staffing_implication": "Strong fit where one person must both build and run the internal system.",
+      "source": "sessions",
+      "evidence": "Dispatch, reconciliation, and triage automation all replaced manual operational processes."
+    },
+    {
+      "tag": "customer-self-service",
+      "label": "Customer self-service interfaces",
+      "depth": "some",
+      "evidence_volume": "low",
+      "session_count": 132,
+      "first_observed": "2026-02",
+      "last_observed": "2026-05",
+      "problem_types": ["Reducing inbound calls by exposing status and rescheduling"],
+      "operating_objects": ["Appointments", "Status pages", "Notification templates"],
+      "constraints": ["Existing design system", "Review by the portal team"],
+      "staffing_implication": "Contributes to customer-facing surfaces but should not own the design direction.",
+      "source": "sessions",
+      "evidence": "One scoped redesign of the appointment-change flow, reviewed by another engineer."
+    }
+  ],
+  "domain_stamps": {
+    "classified_arc_count": 6,
+    "industries": [
+      {
+        "tag": "field-services",
+        "label": "Field services and logistics",
+        "depth": "deep",
+        "proof_stars": 3,
+        "arc_count": 4,
+        "arc_share": 0.667,
+        "arc_ids": ["arc-1", "arc-2", "arc-5", "arc-6"],
+        "evidence": "Dispatch, inventory, triage, and telemetry work all sit inside one field-services operation."
+      },
+      {
+        "tag": "b2b-services",
+        "label": "B2B service delivery",
+        "depth": "repeated",
+        "proof_stars": 2,
+        "arc_count": 2,
+        "arc_share": 0.333,
+        "arc_ids": ["arc-3", "arc-4"],
+        "evidence": "Customer portal and billing work serve contracted business customers rather than consumers."
+      }
+    ],
+    "functions": [
+      {
+        "tag": "operations-engineering",
+        "label": "Operations engineering",
+        "depth": "deep",
+        "proof_stars": 3,
+        "arc_count": 3,
+        "arc_share": 0.5,
+        "arc_ids": ["arc-1", "arc-2", "arc-5"],
+        "evidence": "Three arcs replace or automate a manual operational process end to end."
+      },
+      {
+        "tag": "data-migration",
+        "label": "Data modeling and migration",
+        "depth": "repeated",
+        "proof_stars": 2,
+        "arc_count": 3,
+        "arc_share": 0.5,
+        "arc_ids": ["arc-2", "arc-4", "arc-6"],
+        "evidence": "Schema design and phased migration recur across reconciliation, billing, and telemetry."
+      },
+      {
+        "tag": "platform-reliability",
+        "label": "Reliability and on-call",
+        "depth": "repeated",
+        "proof_stars": 2,
+        "arc_count": 2,
+        "arc_share": 0.333,
+        "arc_ids": ["arc-1", "arc-5"],
+        "evidence": "Alert tuning and first-response automation follow the systems the owner shipped."
+      },
+      {
+        "tag": "frontend-delivery",
+        "label": "Customer-facing delivery",
+        "depth": "exposure",
+        "proof_stars": 1,
+        "arc_count": 1,
+        "arc_share": 0.167,
+        "arc_ids": ["arc-3"],
+        "evidence": "One reviewed contribution to an existing portal."
+      }
+    ]
+  },
+  "subject_matter": {
+    "transfer_pattern": "The recurring move is to take a process that people are holding together by hand, name its exceptions, and turn it into a system that reports on itself. That transfers across dispatch, inventory, and billing because the hard part each time is the discrepancy, not the domain.",
+    "career_context_exposure": [
+      {
+        "label": "Warehouse operations supervisor before moving into engineering",
+        "source": "linkedin",
+        "evidence": "Explains fluency with exception queues."
+      },
+      {
+        "label": "Certificate in supply-chain analytics",
+        "source": "linkedin",
+        "evidence": "Referenced once in session context."
+      }
+    ]
+  },
+  "comparisons": [
+    {
+      "role": "Backend engineer",
+      "summary": "Comparable implementation evidence, with substantially more operational ownership and less evidence of work inside a large engineering organization."
+    },
+    {
+      "role": "Data engineer",
+      "summary": "Overlapping migration and reconciliation work, but the pipelines here are operational rather than analytical, and there is no warehouse modeling evidence."
+    },
+    {
+      "role": "Site reliability engineer",
+      "summary": "Shares alerting and on-call instincts, but the incident evidence is thin and the work is closer to the product than to the platform."
+    },
+    {
+      "role": "Solutions or forward-deployed engineer",
+      "summary": "Similar breadth and stakeholder contact, with deeper single-system ownership and less evidence of working across many customer environments."
+    }
+  ],
+  "project_match": {
+    "good_fit": [
+      "An internal operational system with real users and unsettled data definitions",
+      "A phased data migration where parity must be proven at each step",
+      "Replacing a spreadsheet or manual process with a service someone must then run",
+      "Alerting and first-response automation for a system the same person built"
+    ],
+    "bring_specialist": [
+      "Customer-facing design direction",
+      "Security review of financial data handling",
+      "High-volume streaming architecture beyond prototype scale"
+    ],
+    "not_established": [
+      "Machine learning or model training",
+      "Mobile application development",
+      "Leading an engineering team"
+    ]
+  },
+  "limits": [
+    "Session history shows when work happened locally, not when an organization released it, so delivery dates are inferred from the owner's own account of cutover.",
+    "Only two incidents appear in the record, which is not enough to characterize behavior under unplanned failure.",
+    "LinkedIn was supplied but its content is not analyzed and does not contribute to any rating in this profile.",
+    "Business outcomes are described in conversation and are not corroborated by any number the owner produced."
+  ]
+}
+</script>
+</body>
+</html>
