@@ -4,9 +4,9 @@
 // This CLI makes no network requests. It reads a file you already have, checks
 // it against the schema-8 rules, and writes HTML back to your disk.
 
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 import { configure } from "../src/config.js";
 import {
@@ -214,7 +214,7 @@ function main() {
 }
 
 // Only run when invoked directly, so the tests can import the helpers above.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     main();
   } catch (error) {

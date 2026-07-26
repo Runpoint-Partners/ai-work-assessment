@@ -43,9 +43,9 @@ the finished report.
 The supporting commands are:
 
 ```sh
-npx github:Runpoint-Partners/ai-work-assessment#v7.0.0 environment-id
-npx github:Runpoint-Partners/ai-work-assessment#v7.0.0 validate-bundle ./ai-work-evidence-xxxxxxxx.json
-npx github:Runpoint-Partners/ai-work-assessment#v7.0.0 consolidate ./bundle-folder
+npx github:Runpoint-Partners/ai-work-assessment#v7.0.1 environment-id
+npx github:Runpoint-Partners/ai-work-assessment#v7.0.1 validate-bundle ./ai-work-evidence-xxxxxxxx.json
+npx github:Runpoint-Partners/ai-work-assessment#v7.0.1 consolidate ./bundle-folder
 ```
 
 ## The privacy model
