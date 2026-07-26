@@ -148,3 +148,59 @@ test("--config rebrands the report", () => {
   assert.match(html, /href="https:\/\/example\.test\/"/);
   assert.match(html, /--hot:#0055ff/);
 });
+
+test("multi-environment commands validate and consolidate exact duplicates", () => {
+  const workdir = mkdtempSync(join(tmpdir(), "awa-bundles-"));
+  const digest = "a".repeat(64);
+  const project = "b".repeat(64);
+  const makeBundle = (id, label) => ({
+    bundle_schema_version: 1,
+    collector_prompt_version: 7,
+    environment: { id, kind: "computer", label },
+    collected_at: "2026-07-26T12:00:00.000Z",
+    source_coverage: [{
+      source: "codex",
+      from: "2026-07-01",
+      to: "2026-07-26",
+      coverage_days: 10,
+      sessions: 1,
+      retention: "full-available",
+      limitations: [],
+    }],
+    session_evidence: [{
+      source: "codex",
+      native_session_digest: digest,
+      first_event: "2026-07-25T10:00:00.000Z",
+      last_event: "2026-07-25T11:00:00.000Z",
+      project_fingerprint: project,
+      project_label: "Product application",
+      evidence_quality: "full-transcript",
+      event_count: 20,
+      observations: { outcomes: ["Verified a production change"] },
+      limitations: [],
+    }],
+    collection_limits: [],
+    privacy_scan: { passed: true, scanner_version: 1 },
+  });
+  const first = join(workdir, "ai-work-evidence-11111111.json");
+  const second = join(workdir, "ai-work-evidence-22222222.json");
+  const out = join(workdir, "combined.json");
+  writeFileSync(first, JSON.stringify(makeBundle("111111111111111111111111", "Laptop")));
+  writeFileSync(second, JSON.stringify(makeBundle("222222222222222222222222", "Cloud")));
+
+  assert.match(run(["validate-bundle", first]), /Valid evidence bundle/);
+  assert.match(run(["consolidate", workdir, "--out", out]), /1 exact duplicate/);
+  const result = JSON.parse(readFileSync(out, "utf8"));
+  assert.equal(result.environment_count, 2);
+  assert.equal(result.input_sessions, 2);
+  assert.equal(result.unique_sessions, 1);
+});
+
+test("environment-id is stable inside one private config home", () => {
+  const workdir = mkdtempSync(join(tmpdir(), "awa-home-"));
+  const env = { ...process.env, HOME: workdir };
+  const first = run(["environment-id"], { env }).trim();
+  const second = run(["environment-id"], { env }).trim();
+  assert.match(first, /^[a-f0-9]{24}$/);
+  assert.equal(first, second);
+});

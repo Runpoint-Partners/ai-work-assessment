@@ -25,6 +25,29 @@ The report is a local file. It makes no network request, and nothing is uploaded
 
 Node 20 or newer. No dependencies.
 
+### Work across several computers or cloud environments
+
+Overflow's hosted assessment page exposes an optional two-prompt workflow:
+
+1. Run the collection prompt once on every computer, VM, Codespace, or cloud
+   environment whose local history should count.
+2. Review the generated `ai-work-evidence-*.json` files and move them into one
+   folder.
+3. Run the final report prompt once. It invokes this CLI's deterministic
+   consolidator, counts exact duplicate sessions once, and creates one profile.
+
+The site never connects to another machine and the evidence bundles are never
+uploaded to Overflow. Delete the bundles and consolidated file after reviewing
+the finished report.
+
+The supporting commands are:
+
+```sh
+npx github:Runpoint-Partners/ai-work-assessment#v7.0.0 environment-id
+npx github:Runpoint-Partners/ai-work-assessment#v7.0.0 validate-bundle ./ai-work-evidence-xxxxxxxx.json
+npx github:Runpoint-Partners/ai-work-assessment#v7.0.0 consolidate ./bundle-folder
+```
+
 ## The privacy model
 
 This matters more than the output, so it is worth stating precisely.
@@ -53,7 +76,7 @@ Full definitions, gates, and anti-inflation rules: [`docs/badges.md`](docs/badge
 
 ## Versioning
 
-This is **prompt version 6, profile schema version 8**. Every generated profile records `prompt_version` and `schema_version` in its embedded JSON, so a report can always be traced to the contract that produced it.
+This is **prompt version 7, profile schema version 8**. Every generated profile records `prompt_version` and `schema_version` in its embedded JSON, so a report can always be traced to the contract that produced it. Complete prompt-v6/schema-v8 profiles remain current; version 7 adds optional multi-environment provenance without invalidating them.
 
 The validator is version-aware: schema 8 requires the complete fourteen-badge evidence map, a structured `proof_basis` on every rated badge, and a `next_star_evidence` statement on every badge below three stars. Older profiles are read under their own rules rather than being retroactively failed.
 

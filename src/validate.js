@@ -23,6 +23,29 @@ const SECRET_PATTERNS = [
   { re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/, label: "a private key" },
   { re: /eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}/, label: "a JWT token" },
 ];
+const LOCAL_EVIDENCE_PATTERNS = [
+  { re: /\/Users\/[^/\s"']+/i, label: "a local macOS user path" },
+  { re: /\/home\/[^/\s"']+/i, label: "a local Linux user path" },
+  { re: /[A-Za-z]:\\Users\\[^\\\s"']+/i, label: "a local Windows user path" },
+  { re: /"(?:environment_id|environment_label|bundle_path|native_session_digest|fallback_fingerprint|project_fingerprint|session_evidence|environment_ids)"\s*:/i, label: "bundle-only evidence" },
+];
+const BUNDLE_ONLY_KEYS = [
+  "bundle_schema_version",
+  "collector_prompt_version",
+  "consolidated_at",
+  "bundle_count",
+  "environments",
+  "session_evidence",
+  "collection_limits",
+  "privacy_scan",
+  "environment",
+  "environment_id",
+  "environment_label",
+  "bundle_path",
+  "native_session_digest",
+  "fallback_fingerprint",
+  "project_fingerprint",
+];
 const SIGNAL_KEYS = [
   "verification_discipline",
   "judgment_rigor",
@@ -68,6 +91,18 @@ export function assertNoSecrets(serializedPayload) {
   }
 }
 
+export function assertNoLocalEvidenceLeaks(serializedPayload) {
+  for (const { re, label } of LOCAL_EVIDENCE_PATTERNS) {
+    if (re.test(String(serializedPayload || ""))) {
+      throw new ProfileError(
+        `Hold on — the profile appears to contain ${label}. Remove it and re-upload. (Nothing was stored.)`,
+        422,
+        "PROFILE_LOCAL_EVIDENCE_DETECTED",
+      );
+    }
+  }
+}
+
 export function parseProfileData(html) {
   const match = String(html || "").match(/<script type="application\/json" id="profile-data">([\s\S]*?)<\/script>/);
   if (!match) {
@@ -86,9 +121,35 @@ export function parseProfileData(html) {
 }
 
 export function sanitizeProfile(profile) {
+  for (const key of BUNDLE_ONLY_KEYS) delete profile[key];
   profile.name = clean(profile.name, 200);
   profile.focus = clean(profile.focus || profile.headline, 300);
   profile.headline = clean(profile.headline || profile.focus, 300);
+
+  if (isObject(profile.collection_summary) && profile.collection_summary.mode === "multi") {
+    const summary = profile.collection_summary;
+    profile.collection_summary = {
+      mode: "multi",
+      environment_count: Math.min(12, nonNegativeInt(summary.environment_count)),
+      input_sessions: nonNegativeInt(summary.input_sessions),
+      unique_sessions: nonNegativeInt(summary.unique_sessions),
+      exact_duplicates_removed: nonNegativeInt(summary.exact_duplicates_removed),
+      strategy_version: positiveInt(summary.strategy_version) || 1,
+      environment_coverage: (Array.isArray(summary.environment_coverage) ? summary.environment_coverage : [])
+        .map((item, index) => ({
+          environment_index: index + 1,
+          kind: allowed(item?.kind, ["computer", "vm", "cloud", "other"]) || "other",
+          sources: cleanEnumStrings(item?.sources, AGENT_SOURCES, 4),
+          from: clean(item?.from, 10),
+          to: clean(item?.to, 10),
+          unique_sessions: nonNegativeInt(item?.unique_sessions),
+        }))
+        .filter((item) => item.sources.length && item.from && item.to)
+        .slice(0, 12),
+    };
+  } else if ("collection_summary" in profile) {
+    delete profile.collection_summary;
+  }
 
   profile.skills = profile.skills
     .map((skill) => ({
@@ -662,6 +723,11 @@ function nonNegativeInt(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
   return Math.max(0, Math.trunc(number));
+}
+
+function positiveInt(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.trunc(number) : null;
 }
 
 function optionalNonNegativeInt(value) {

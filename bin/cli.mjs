@@ -4,8 +4,8 @@
 // This CLI makes no network requests. It reads a file you already have, checks
 // it against the schema-8 rules, and writes HTML back to your disk.
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { basename, extname, resolve } from "node:path";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { basename, extname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { configure } from "../src/config.js";
@@ -20,16 +20,26 @@ import {
 import { renderProfileDocument } from "../src/render.js";
 import { injectOperatorProfileArtifacts } from "../src/artifacts.js";
 import { openJsonFileStore, slugify } from "../src/storage.js";
+import {
+  BundleError,
+  consolidateBundles,
+  stableEnvironmentId,
+  validateBundle,
+} from "../src/evidence-bundle.js";
 
 const USAGE = `ai-work-assessment — evidence-based AI work profiles
 
 Usage:
   ai-work-assessment render <report.html|profile.json> [options]
   ai-work-assessment validate <report.html|profile.json> [options]
+  ai-work-assessment environment-id
+  ai-work-assessment validate-bundle <evidence.json>
+  ai-work-assessment consolidate <bundle-directory> [--out <path>]
 
 Options:
   --out <path>       Where to write the rendered HTML (render only).
-                     Defaults to <input-basename>.rendered.html
+                     Defaults to <input-basename>.rendered.html, or
+                     ai-work-consolidated.json for consolidate.
   --store <path>     Also record the profile in a JSON file store. Off by
                      default; without it nothing is persisted anywhere.
   --config <path>    JSON file of branding overrides (siteName, siteUrl,
@@ -143,13 +153,40 @@ function main() {
     console.log(USAGE);
     process.exit(options.help ? 0 : 1);
   }
-  if (!["render", "validate"].includes(command)) {
+  if (command === "environment-id") {
+    console.log(stableEnvironmentId());
+    return;
+  }
+  if (!["render", "validate", "validate-bundle", "consolidate"].includes(command)) {
     console.error(`Unknown command "${command}".\n\n${USAGE}`);
     process.exit(1);
   }
   if (!input) {
     console.error(`${command} needs an input file.\n\n${USAGE}`);
     process.exit(1);
+  }
+
+  if (command === "validate-bundle") {
+    const inputPath = resolve(input);
+    const bundle = validateBundle(JSON.parse(readFileSync(inputPath, "utf8")));
+    console.log(`Valid evidence bundle: ${bundle.session_evidence.length} session(s), ${bundle.source_coverage.length} source window(s).`);
+    return;
+  }
+
+  if (command === "consolidate") {
+    const directory = resolve(input);
+    const files = readdirSync(directory)
+      .filter((name) => /^ai-work-evidence-[a-f0-9]{8}\.json$/i.test(name))
+      .sort();
+    if (!files.length) throw new BundleError("No ai-work-evidence-*.json files were found.");
+    const result = consolidateBundles(files.map((name) =>
+      JSON.parse(readFileSync(join(directory, name), "utf8")),
+    ));
+    const outPath = resolve(options.out || join(directory, "ai-work-consolidated.json"));
+    writeFileSync(outPath, `${JSON.stringify(result, null, 2)}\n`);
+    console.log(`Consolidated ${result.bundle_count} bundle(s): ${result.input_sessions} input session(s), ${result.unique_sessions} unique, ${result.exact_duplicates_removed} exact duplicate(s) removed.`);
+    console.log(`Wrote ${outPath}`);
+    return;
   }
 
   applyConfigFile(options.config);
@@ -183,6 +220,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   } catch (error) {
     if (error instanceof ProfileError) {
       console.error(`Rejected: ${error.error}`);
+      process.exit(2);
+    }
+    if (error instanceof BundleError) {
+      console.error(`Rejected: ${error.message}`);
       process.exit(2);
     }
     console.error(error?.message || String(error));

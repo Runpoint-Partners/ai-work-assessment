@@ -36,6 +36,11 @@ const CONFIG_IMPORT = `import { config } from "./config.js";\n`;
 
 const MODULES = [
   {
+    target: "src/evidence-bundle.js",
+    source: "scripts/lib/evidence-bundle.mjs",
+    transforms: [],
+  },
+  {
     target: "src/validate.js",
     source: "functions/api/_assessment_validate.js",
     // Only change: the one import is inlined so the validator has zero deps.
@@ -110,9 +115,14 @@ function clean(value, max = 500) {
         count: 1,
       },
       {
-        note: "use the STYLES getter",
-        find: "<style>${STYLES}</style>",
-        replace: "<style>${styles()}</style>",
+        note: "use the configurable STYLES getter",
+        find: `  const documentStyles = safeProfile.collection_summary?.mode === "multi"
+    ? STYLES
+    : STYLES.replace(/\\.provenance\\{[^}]+\\}/, "");`,
+        replace: `  const allStyles = styles();
+  const documentStyles = safeProfile.collection_summary?.mode === "multi"
+    ? allStyles
+    : allStyles.replace(/\\.provenance\\{[^}]+\\}/, "");`,
         count: 1,
       },
       {

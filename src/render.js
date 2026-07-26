@@ -13,6 +13,10 @@ export function renderProfileDocument(profile = {}) {
   const role = text(safeProfile.project_role?.best_fit);
   const intro = text(safeProfile.community_profile?.introduction || safeProfile.community_introduction);
   const serialized = JSON.stringify(safeProfile, null, 2).replace(/</g, "\\u003c");
+  const allStyles = styles();
+  const documentStyles = safeProfile.collection_summary?.mode === "multi"
+    ? allStyles
+    : allStyles.replace(/\.provenance\{[^}]+\}/, "");
 
   return `<!doctype html>
 <html lang="en">
@@ -21,7 +25,7 @@ export function renderProfileDocument(profile = {}) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <title>${escapeHtml(name)} — ${escapeHtml(config.siteName)} profile</title>
-<style>${styles()}</style>
+<style>${documentStyles}</style>
 </head>
 <body>
 <header class="site-head">
@@ -113,7 +117,11 @@ function activityCoverage(profile) {
     fact("Peak concurrent", concurrency.peak_concurrent_sessions),
   ].filter(Boolean).join("");
   const summary = text(activity.evolution_summary || activity.comparability_note);
-  return section("03 / Activity coverage", "What the retained history can show.", `${facts ? `<div class="facts">${facts}</div>` : ""}${summary ? `<p class="section-lead">${escapeHtml(summary)}</p>` : ""}`);
+  const environments = finite(profile.collection_summary?.environment_count);
+  const provenance = profile.collection_summary?.mode === "multi" && environments > 1
+    ? `<p class="attestation">Combined from ${environments} environments</p>`
+    : "";
+  return section("03 / Activity coverage", "What the retained history can show.", `${provenance}${facts ? `<div class="facts">${facts}</div>` : ""}${summary ? `<p class="section-lead">${escapeHtml(summary)}</p>` : ""}`);
 }
 
 function interactionProfile(profile) {
@@ -182,8 +190,22 @@ function projectFit(profile) {
 function sourcesAndLimits(profile) {
   const windows = flattenWindows(profile.windows).slice(0, 8);
   const limits = array(profile.limits).slice(0, 8).map(text).filter(Boolean);
+  const collection = profile.collection_summary;
+  const environmentRows = collection?.mode === "multi"
+    ? array(collection.environment_coverage).slice(0, 12).map((environment, index) => {
+      const sources = array(environment?.sources).map(label).filter(Boolean).join(", ");
+      const range = `${text(environment?.from) || "?"} → ${text(environment?.to) || "?"}`;
+      return row(`Environment ${index + 1}`, range, `${sources || "Local history"} · ${finite(environment?.unique_sessions)} unique sessions`);
+    }).join("")
+    : "";
+  const assembly = collection?.mode === "multi"
+    ? `<details><summary>How this profile was assembled</summary>
+      <p class="muted">The profile owner assembled local evidence bundles. Overflow validates the submitted profile but does not verify the machines or their origin. Exact duplicate sessions found in more than one bundle were counted once.</p>
+      ${environmentRows ? `<div class="rows">${environmentRows}</div>` : ""}
+    </details>`
+    : "";
   return section("09 / Sources and limits", "What this submission contains.", `
-    ${windows.length ? `<div class="rows">${windows.map((window) => row(window.tool, `${window.from || "?"} → ${window.to || "?"}`, `${window.sessions ?? 0} sessions`)).join("")}</div>` : ""}
+    ${windows.length ? `<div class="rows">${windows.map((window) => row(window.tool, `${window.from || "?"} → ${window.to || "?"}`, `${window.sessions ?? 0} sessions`)).join("")}</div>` : ""}${assembly ? `\n    ${assembly}` : ""}
     ${limits.length ? `<details><summary>Known limits</summary><ul>${limits.map((limit) => `<li>${escapeHtml(limit)}</li>`).join("")}</ul></details>` : ""}
   `);
 }
@@ -254,7 +276,7 @@ function escapeHtml(value) {
 
 const styles = () => `
 :root{--bg:#0e0d0b;--surface:#161411;--paper:#f2eee6;--muted:#a89f90;--line:#2a2620;--hot:${config.accentColor};color-scheme:dark}
-*{box-sizing:border-box}html{background:var(--bg);color:var(--paper);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{margin:0}a{color:inherit}.site-head,main,footer{width:min(1080px,calc(100% - 40px));margin:auto}.site-head{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line);font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.brand{text-decoration:none;color:var(--paper)}.brand span{display:inline-grid;place-items:center;width:24px;height:24px;border:1px solid var(--hot);color:var(--hot);margin-right:9px}.hero{padding:clamp(64px,10vw,130px) 0 72px;border-bottom:1px solid var(--line)}.eyebrow,.section-head span{font:10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.13em;text-transform:uppercase;color:var(--hot)}h1{margin:14px 0 0;font-size:clamp(54px,10vw,126px);line-height:.82;letter-spacing:-.065em;max-width:960px}.focus{max-width:760px;margin:30px 0 0;font-size:clamp(22px,3.4vw,42px);line-height:1.06;color:#d8d1c5}.intro,.section-lead{max-width:760px;font-size:17px;line-height:1.65}.attestation{max-width:780px;margin:34px 0 0;padding:14px 16px;border-left:2px solid var(--hot);background:var(--surface);color:var(--muted);font:11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}.section{padding:70px 0;border-bottom:1px solid var(--line)}.section-head{display:grid;grid-template-columns:180px minmax(0,1fr);gap:20px;margin-bottom:36px}.section-head h2{margin:0;font-size:clamp(32px,5vw,64px);line-height:.95;letter-spacing:-.045em}.rows{border-top:1px solid var(--line)}.row{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(0,1.3fr);gap:30px;padding:20px 0;border-bottom:1px solid var(--line)}.row h3,.chip-group h3,.fit-grid h3{margin:0;font-size:15px}.row span{display:block;margin-top:6px;color:var(--hot);font:9px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase}.row p{margin:0;color:#c4bcb0;line-height:1.65}.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:28px}.facts div{background:var(--surface);padding:20px}.facts strong,.facts span{display:block}.facts strong{font-size:34px;color:var(--hot)}.facts span{margin-top:6px;color:var(--muted);font-size:11px}.chip-group{display:grid;grid-template-columns:180px 1fr;gap:20px;margin-top:28px}.chip-group>div{display:flex;flex-wrap:wrap;gap:8px}.chip-group span{border:1px solid var(--line);padding:7px 10px;color:#c4bcb0;font-size:12px}.fit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}.fit-grid>div{background:var(--surface);padding:22px}.fit-grid h3{color:var(--hot)}ul{padding-left:18px;color:#c4bcb0;line-height:1.6}details{margin-top:24px;border:1px solid var(--line);padding:18px}summary{cursor:pointer;color:var(--hot);font:11px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em}.muted{color:var(--muted)}footer{min-height:110px;display:flex;align-items:center;justify-content:space-between;gap:20px;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase}footer b{color:var(--hot)}footer a{text-decoration:none;border-bottom:1px solid var(--line)}
+*{box-sizing:border-box}html{background:var(--bg);color:var(--paper);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{margin:0}a{color:inherit}.site-head,main,footer{width:min(1080px,calc(100% - 40px));margin:auto}.site-head{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:24px;border-bottom:1px solid var(--line);font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.brand{text-decoration:none;color:var(--paper)}.brand span{display:inline-grid;place-items:center;width:24px;height:24px;border:1px solid var(--hot);color:var(--hot);margin-right:9px}.hero{padding:clamp(64px,10vw,130px) 0 72px;border-bottom:1px solid var(--line)}.eyebrow,.section-head span{font:10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.13em;text-transform:uppercase;color:var(--hot)}h1{margin:14px 0 0;font-size:clamp(54px,10vw,126px);line-height:.82;letter-spacing:-.065em;max-width:960px}.focus{max-width:760px;margin:30px 0 0;font-size:clamp(22px,3.4vw,42px);line-height:1.06;color:#d8d1c5}.intro,.section-lead{max-width:760px;font-size:17px;line-height:1.65}.provenance{display:inline-flex;margin:0 0 18px;padding:7px 10px;border:1px solid var(--hot);color:var(--hot);font:10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase}.attestation{max-width:780px;margin:34px 0 0;padding:14px 16px;border-left:2px solid var(--hot);background:var(--surface);color:var(--muted);font:11px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}.section{padding:70px 0;border-bottom:1px solid var(--line)}.section-head{display:grid;grid-template-columns:180px minmax(0,1fr);gap:20px;margin-bottom:36px}.section-head h2{margin:0;font-size:clamp(32px,5vw,64px);line-height:.95;letter-spacing:-.045em}.rows{border-top:1px solid var(--line)}.row{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(0,1.3fr);gap:30px;padding:20px 0;border-bottom:1px solid var(--line)}.row h3,.chip-group h3,.fit-grid h3{margin:0;font-size:15px}.row span{display:block;margin-top:6px;color:var(--hot);font:9px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase}.row p{margin:0;color:#c4bcb0;line-height:1.65}.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:28px}.facts div{background:var(--surface);padding:20px}.facts strong,.facts span{display:block}.facts strong{font-size:34px;color:var(--hot)}.facts span{margin-top:6px;color:var(--muted);font-size:11px}.chip-group{display:grid;grid-template-columns:180px 1fr;gap:20px;margin-top:28px}.chip-group>div{display:flex;flex-wrap:wrap;gap:8px}.chip-group span{border:1px solid var(--line);padding:7px 10px;color:#c4bcb0;font-size:12px}.fit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}.fit-grid>div{background:var(--surface);padding:22px}.fit-grid h3{color:var(--hot)}ul{padding-left:18px;color:#c4bcb0;line-height:1.6}details{margin-top:24px;border:1px solid var(--line);padding:18px}summary{cursor:pointer;color:var(--hot);font:11px ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em}.muted{color:var(--muted)}footer{min-height:110px;display:flex;align-items:center;justify-content:space-between;gap:20px;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase}footer b{color:var(--hot)}footer a{text-decoration:none;border-bottom:1px solid var(--line)}
 @media(max-width:700px){.site-head{align-items:flex-start;padding:20px 0}.site-head,.section-head,.row,.chip-group{grid-template-columns:1fr}.site-head{display:grid}.section{padding:52px 0}.section-head{gap:10px}.facts,.fit-grid{grid-template-columns:1fr}.row{gap:10px}.site-head,main,footer{width:min(100% - 28px,1080px)}h1{font-size:clamp(48px,17vw,82px)}}
 @media print{:root{--bg:#fff;--surface:#fff;--paper:#111;--muted:#555;--line:#ccc;--hot:#b33500}.attestation,.facts div,.fit-grid>div{background:#fff}.section{break-inside:avoid}}
 `;

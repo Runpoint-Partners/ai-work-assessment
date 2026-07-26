@@ -1,6 +1,6 @@
 {
   "name": "ai-work-assessment",
-  "version": "6.0.0",
+  "version": "7.0.0",
   "description": "An agent-run, evidence-based profile of how you actually work with AI. Runs on your machine; the report is a local HTML file.",
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,8 @@
     "./artifacts": "./src/artifacts.js",
     "./curves": "./src/curves.js",
     "./storage": "./src/storage.js",
-    "./config": "./src/config.js"
+    "./config": "./src/config.js",
+    "./evidence-bundle": "./src/evidence-bundle.js"
   },
   "files": [
     "bin",

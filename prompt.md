@@ -1,5 +1,5 @@
 <!--
-AI Work Assessment — prompt version 6, profile schema version 8.
+AI Work Assessment — prompt version 7, profile schema version 8.
 
 Give this prompt to a capable coding agent (Claude Code, Codex, or similar) on
 the machine whose work is being assessed. It produces one self-contained HTML
@@ -607,7 +607,7 @@ Include this exact machine-readable block, populated with real values:
 <script type="application/json" id="profile-data">
 {
   "schema_version": 8,
-  "prompt_version": 6,
+  "prompt_version": 7,
   "name": "",
   "focus": "",
   "headline": "",

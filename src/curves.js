@@ -9,6 +9,14 @@
 // keeps a small cohort from being re-identifiable, so do not lower it.
 const MIN_PUBLIC_COVERAGE = 8;
 const DENSITY_SAMPLES = 33;
+const MULTI_ENVIRONMENT_LOCAL_METRICS = new Set([
+  "captured_agent_sessions",
+  "claude_code_sessions",
+  "codex_sessions",
+  "agent_sessions_per_observed_week",
+  "recent_agent_sessions_28d",
+  "active_agent_weeks_12w",
+]);
 
 const METRICS = [
   {
@@ -178,7 +186,11 @@ export function buildPublicBenchmarkCurves(rows = []) {
 function compatible(profile, metric) {
   const promptVersion = Number(profile?.row?.prompt_version ?? profile?.data?.prompt_version ?? 1);
   const schemaVersion = Number(profile?.row?.schema_version ?? profile?.data?.schema_version ?? 1);
-  return promptVersion >= metric.minimumPromptVersion && schemaVersion >= metric.minimumSchemaVersion;
+  const multiEnvironment = profile?.data?.collection_summary?.mode === "multi"
+    && Number(profile.data.collection_summary.environment_count) > 1;
+  return promptVersion >= metric.minimumPromptVersion
+    && schemaVersion >= metric.minimumSchemaVersion
+    && !(multiEnvironment && MULTI_ENVIRONMENT_LOCAL_METRICS.has(metric.key));
 }
 
 function empiricalDensity(values, metric) {
