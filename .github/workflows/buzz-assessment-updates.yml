@@ -1,0 +1,25 @@
+name: Notify Buzz of assessment updates
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify-buzz:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post update to Buzz
+        env:
+          BUZZ_WEBHOOK_URL: ${{ secrets.BUZZ_ASSESSMENT_WEBHOOK_URL }}
+          BUZZ_WEBHOOK_SECRET: ${{ secrets.BUZZ_ASSESSMENT_WEBHOOK_SECRET }}
+        run: |
+          curl --fail --silent --show-error --retry 3 \
+            --header "Content-Type: application/json" \
+            --header "X-Webhook-Secret: ${BUZZ_WEBHOOK_SECRET}" \
+            --data "{\"event\":\"push\",\"repository\":\"${GITHUB_REPOSITORY}\",\"ref\":\"${GITHUB_REF}\",\"sha\":\"${GITHUB_SHA}\",\"actor\":\"${GITHUB_ACTOR}\"}" \
+            "${BUZZ_WEBHOOK_URL}"
