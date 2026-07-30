@@ -82,6 +82,8 @@ Every generated profile records `prompt_version` and `schema_version` in its emb
 
 The validator is version-aware: schema 8 requires the complete fourteen-badge evidence map, a structured `proof_basis` on every rated badge, and a `next_star_evidence` statement on every badge below three stars. Older profiles are read under their own rules rather than being retroactively failed.
 
+See the [version history](CHANGELOG.md) for release dates, compatibility, and the difference between assessment, schema, and helper versions.
+
 ## Self-hosting
 
 Everything needed to run this as your own tool is here. `src/config.js` is the single branding seam:
