@@ -175,7 +175,7 @@ function badgeProofNote(badge) {
     return `<div class="awa-credential__proof"><b>Next star</b><span>${escapeHtml(next)}</span></div>`;
   }
   if (badge.schemaVersion < 8) {
-    return `<div class="awa-credential__proof"><b>Legacy v8 rating</b><span>${arcCount} cited work arc${arcCount === 1 ? "" : "s"}; not yet recalibrated against the current 90-day, cross-system three-star rule.</span></div>`;
+    return `<div class="awa-credential__proof"><b>Legacy pre-schema-v8 rating</b><span>${arcCount} cited work arc${arcCount === 1 ? "" : "s"}; not yet recalibrated against the current 90-day, cross-system three-star rule.</span></div>`;
   }
   const basis = badge?.proof_basis && typeof badge.proof_basis === "object"
     ? [badge.proof_basis.arc_count ? `${badge.proof_basis.arc_count} qualifying arcs` : "", badge.proof_basis.system_count ? `${badge.proof_basis.system_count} systems` : "", badge.proof_basis.span_days ? `${badge.proof_basis.span_days} days` : ""].filter(Boolean).join(" · ")

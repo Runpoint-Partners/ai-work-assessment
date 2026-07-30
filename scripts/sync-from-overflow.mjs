@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Deterministic vendoring of the four shared modules from the Overflow site.
+// Deterministic vendoring of the shared assessment contract and modules from
+// the Overflow site.
 //
 // SOURCE-OF-TRUTH POLICY
 // ----------------------
@@ -35,6 +36,12 @@ const BANNER = (source) => `// Vendored from the Overflow site: ${source}
 const CONFIG_IMPORT = `import { config } from "./config.js";\n`;
 
 const MODULES = [
+  {
+    target: "assessment-contract.json",
+    source: "assessment-contract.json",
+    transforms: [],
+    raw: true,
+  },
   {
     target: "src/evidence-bundle.js",
     source: "scripts/lib/evidence-bundle.mjs",
@@ -349,7 +356,7 @@ function build(sourceRoot) {
   return MODULES.map((module) => {
     const raw = readFileSync(join(sourceRoot, module.source), "utf8");
     const transformed = applyTransforms(raw, module.transforms, module.target);
-    const content = BANNER(module.source) + "\n" + transformed;
+    const content = module.raw ? transformed : BANNER(module.source) + "\n" + transformed;
     return {
       target: module.target,
       source: module.source,

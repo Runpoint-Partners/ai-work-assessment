@@ -1,0 +1,7 @@
+{
+  "$schemaVersion": 1,
+  "assessmentPromptVersion": 7,
+  "profileSchemaVersion": 8,
+  "minimumCompatiblePromptVersion": 6,
+  "helperVersion": "7.0.2"
+}

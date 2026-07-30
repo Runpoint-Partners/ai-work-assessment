@@ -43,9 +43,9 @@ the finished report.
 The supporting commands are:
 
 ```sh
-npx github:Runpoint-Partners/ai-work-assessment#v7.0.1 environment-id
-npx github:Runpoint-Partners/ai-work-assessment#v7.0.1 validate-bundle ./ai-work-evidence-xxxxxxxx.json
-npx github:Runpoint-Partners/ai-work-assessment#v7.0.1 consolidate ./bundle-folder
+npx github:Runpoint-Partners/ai-work-assessment#v7.0.2 environment-id
+npx github:Runpoint-Partners/ai-work-assessment#v7.0.2 validate-bundle ./ai-work-evidence-xxxxxxxx.json
+npx github:Runpoint-Partners/ai-work-assessment#v7.0.2 consolidate ./bundle-folder
 ```
 
 ## The privacy model
@@ -76,7 +76,9 @@ Full definitions, gates, and anti-inflation rules: [`docs/badges.md`](docs/badge
 
 ## Versioning
 
-This is **prompt version 7, profile schema version 8**. Every generated profile records `prompt_version` and `schema_version` in its embedded JSON, so a report can always be traced to the contract that produced it. Complete prompt-v6/schema-v8 profiles remain current; version 7 adds optional multi-environment provenance without invalidating them.
+This is **Assessment v7**, implemented by prompt version 7 and profile schema version 8. The open-source helper release is **v7.0.2**. The helper's semantic version is its software release number; the profile schema is a separate data-contract version.
+
+Every generated profile records `prompt_version` and `schema_version` in its embedded JSON, so a report can always be traced to the contract that produced it. Complete prompt-v6/schema-v8 profiles remain compatible; version 7 adds optional multi-environment provenance without invalidating them.
 
 The validator is version-aware: schema 8 requires the complete fourteen-badge evidence map, a structured `proof_basis` on every rated badge, and a `next_star_evidence` statement on every badge below three stars. Older profiles are read under their own rules rather than being retroactively failed.
 

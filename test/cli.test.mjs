@@ -100,7 +100,9 @@ test("render is idempotent", () => {
 test("validate prints a field-level report", () => {
   const stdout = run(["validate", FIXTURE]);
   assert.match(stdout, /name\s+Riley Okafor/);
-  assert.match(stdout, /prompt \/ schema\s+v6 \/ schema 8/);
+  assert.match(stdout, /helper release\s+v7\.0\.2/);
+  assert.match(stdout, /assessment prompt\s+v6/);
+  assert.match(stdout, /profile schema\s+v8/);
   assert.match(stdout, /badge map complete\s+yes \(14\/14\)/);
   assert.match(stdout, /work arcs\s+6/);
   assert.match(stdout, /Valid: the profile satisfies the schema-8 rules\./);

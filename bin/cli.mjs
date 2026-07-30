@@ -27,7 +27,9 @@ import {
   validateBundle,
 } from "../src/evidence-bundle.js";
 
-const USAGE = `ai-work-assessment — evidence-based AI work profiles
+const HELPER_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+
+const USAGE = `ai-work-assessment v${HELPER_VERSION} — evidence-based AI work profiles
 
 Usage:
   ai-work-assessment render <report.html|profile.json> [options]
@@ -120,8 +122,10 @@ function fieldReport(profile) {
   const fresh = freshness(profile);
 
   const lines = [
+    `helper release        v${HELPER_VERSION}`,
     `name                  ${profile.name || "(none)"}`,
-    `prompt / schema       v${profile.prompt_version} / schema ${profile.schema_version}`,
+    `assessment prompt     v${profile.prompt_version}`,
+    `profile schema        v${profile.schema_version}`,
     `generated             ${profile.generated_at || "(none)"} by ${profile.generated_by?.agent || "unknown"}`,
     `freshness             ${fresh.label} (${fresh.detail})`,
     "",
