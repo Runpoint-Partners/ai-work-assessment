@@ -10,11 +10,14 @@ import {
   parseProfileData,
   sanitizeProfile,
   validateBadgeScarcity,
+  validateProfileV9,
+  validateRawProfileV9,
 } from "../src/validate.js";
 import { freshness } from "../bin/cli.mjs";
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "profile-v6.html");
 const fixtureHtml = readFileSync(FIXTURE, "utf8");
+const CURRENT_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "profile-v9.sample.json");
 
 // Each test gets its own copy: sanitizeProfile mutates in place.
 function loadFixture() {
@@ -77,6 +80,16 @@ test("accepts the v6 fixture", async (t) => {
     assert.equal(freshness({ cadence: { last_session: daysAgo(400) } }).label, "stale");
     assert.equal(freshness({}).label, "unknown");
   });
+});
+
+test("accepts the current matching-profile fixture", () => {
+  const profile = JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8"));
+  assert.doesNotThrow(() => validateRawProfileV9(profile));
+  sanitizeProfile(profile);
+  assert.doesNotThrow(() => validateProfileV9(profile));
+  assert.equal(profile.schema_version, 9);
+  assert.equal(profile.prompt_version, 8);
+  assert.equal(profile.profile_view.agent_practice.workflow.length, 4);
 });
 
 test("rejects a profile carrying a live credential", async (t) => {

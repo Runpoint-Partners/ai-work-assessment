@@ -15,8 +15,7 @@ export const defaultConfig = {
   accentColor: "#ff4d00",
   // Small caps line printed at the bottom-left of the share card.
   shareCardFooter: "AI WORK ASSESSMENT",
-  // Link target for the badge definitions. Null omits the link entirely; a
-  // self-hoster serving docs/badges.md can point at their published copy.
+  // Legacy schema-v8 only. Null omits the retired badge-definition link.
   badgesUrl: null,
   // Footer links rendered as {label, href} pairs. Empty by default.
   footerLinks: [],

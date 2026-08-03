@@ -3,10 +3,31 @@
 //   node scripts/sync-from-overflow.mjs
 // De-branding transforms and integrity hashes live in SYNC-MANIFEST.json.
 
+import { renderProfileV9Document } from "./profile-template.js";
+
 import { config } from "./config.js";
 
-export function renderProfileDocument(profile = {}) {
+export function renderProfileDocument(profile = {}, options = {}) {
   const safeProfile = profile && typeof profile === "object" && !Array.isArray(profile) ? profile : {};
+  if (Number(safeProfile.schema_version) >= 9) {
+    return renderProfileV9Document(safeProfile, {
+      ...options,
+      localPreview: true,
+      cohortMode: config.cohortComparison ? "loading" : "none",
+      showUpload: false,
+      branding: {
+        siteName: config.siteName,
+        accentColor: config.accentColor,
+        memberFallback: "Unnamed practitioner",
+        titleSuffix: `${config.siteName} matching profile`,
+        headerLabel: `${config.siteName} / Matching profile`,
+        footerLabel: `${config.siteName} / evidence-based profile`,
+        manageUrl: null,
+        shareLabel: `${config.siteName.toUpperCase()} / MATCHING PROFILE`,
+        shareFooter: config.shareCardFooter,
+      },
+    });
+  }
   const name = text(safeProfile.name) || "Unnamed practitioner";
   const focus = text(safeProfile.focus || safeProfile.headline) || "Project-fit profile";
   const generated = text(safeProfile.generated_at);

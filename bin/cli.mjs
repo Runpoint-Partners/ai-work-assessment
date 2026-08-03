@@ -2,7 +2,7 @@
 // ai-work-assessment — validate and re-render an assessment report.
 //
 // This CLI makes no network requests. It reads a file you already have, checks
-// it against the schema-8 rules, and writes HTML back to your disk.
+// it against its versioned schema rules, and writes HTML back to your disk.
 
 import { readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
@@ -15,6 +15,8 @@ import {
   assertNoSecrets,
   parseProfileData,
   sanitizeProfile,
+  validateProfileV9,
+  validateRawProfileV9,
   validateBadgeScarcity,
 } from "../src/validate.js";
 import { renderProfileDocument } from "../src/render.js";
@@ -45,7 +47,7 @@ Options:
   --store <path>     Also record the profile in a JSON file store. Off by
                      default; without it nothing is persisted anywhere.
   --config <path>    JSON file of branding overrides (siteName, siteUrl,
-                     accentColor, shareCardFooter, badgesUrl, footerLinks).
+                     accentColor, shareCardFooter, footerLinks; badgesUrl is legacy schema-v8 only).
   -h, --help         Show this message.
 
 No subcommand contacts the network.`;
@@ -76,7 +78,8 @@ function loadProfile(inputPath) {
     } catch {
       throw new ProfileError("The file is not valid JSON.");
     }
-    if (!Array.isArray(profile.skills) || profile.skills.length === 0) {
+    const currentProfile = Number(profile.schema_version) >= 9 && profile.profile_view;
+    if (!currentProfile && (!Array.isArray(profile.skills) || profile.skills.length === 0)) {
       throw new ProfileError("The profile has no skills data — re-run the assessment.");
     }
     return profile;
@@ -85,8 +88,10 @@ function loadProfile(inputPath) {
 }
 
 function normalize(profile) {
+  if (Number(profile?.schema_version) >= 9) validateRawProfileV9(profile);
   sanitizeProfile(profile);
-  validateBadgeScarcity(profile);
+  if (Number(profile?.schema_version) >= 9) validateProfileV9(profile);
+  else validateBadgeScarcity(profile);
   return profile;
 }
 
@@ -114,6 +119,7 @@ export function freshness(profile) {
 }
 
 function fieldReport(profile) {
+  if (Number(profile?.schema_version) >= 9) return currentFieldReport(profile);
   const badges = profile.badges || {};
   const awarded = ["technical_chops", "business_know_how", "good_judgment"].flatMap((family) =>
     (badges[family] || []).map((badge) => `${badge.tag} ${"★".repeat(badge.proof_stars)}`),
@@ -147,6 +153,30 @@ function fieldReport(profile) {
     `career context        ${profile.career?.status || profile.subject_matter?.career_context_exposure ? "present" : "absent"}`,
   ];
   return lines.join("\n");
+}
+
+function currentFieldReport(profile) {
+  const fresh = freshness(profile);
+  const mix = profile.profile_view?.agent_footprint?.normalized_mix;
+  const sourceMix = Array.isArray(mix?.items)
+    ? mix.items.map((item) => `${item.source} ${Math.round(Number(item.share) * 1000) / 10}%`).join(" · ")
+    : "unavailable";
+  return [
+    `helper release        v${HELPER_VERSION}`,
+    `name                  ${profile.name || "(none)"}`,
+    `assessment prompt     v${profile.prompt_version}`,
+    `profile schema        v${profile.schema_version}`,
+    `generated             ${profile.generated_at || "(none)"} by ${profile.generated_by?.agent || "unknown"}`,
+    `freshness             ${fresh.label} (${fresh.detail})`,
+    "",
+    `work arcs             ${count(profile.work_arcs)}`,
+    `visible industries    ${count(profile.profile_view?.industries)}`,
+    `subject areas         ${count(profile.profile_view?.subject_matter)}`,
+    `evidence records      ${count(profile.evidence_index)}`,
+    `matching capabilities ${count(profile.matching_index?.capabilities)}`,
+    `agent statistics      ${count(profile.profile_view?.agent_practice?.statistics)}`,
+    `shared-window mix     ${sourceMix}`,
+  ].join("\n");
 }
 
 function main() {
@@ -199,7 +229,7 @@ function main() {
 
   if (command === "validate") {
     console.log(fieldReport(profile));
-    console.log("\nValid: the profile satisfies the schema-8 rules.");
+    console.log(`\nValid: the profile satisfies its schema-v${profile.schema_version} rules.`);
     return;
   }
 

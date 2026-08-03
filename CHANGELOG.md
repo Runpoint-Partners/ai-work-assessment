@@ -2,9 +2,9 @@
 
 The assessment, profile schema, and open-source helper have separate version numbers.
 
-- **Assessment v7** is the current assessment method and prompt.
-- **Profile schema v8** is the JSON format written by Assessment v6 and v7. It does not mean there is an Assessment v8.
-- **Helper v7.0.2** is the current release of the optional open-source command-line tools. Patch releases fix the helper without changing the assessment method.
+- **Assessment v8** is the current assessment method and prompt.
+- **Profile schema v9** is the matching-focused JSON format written by Assessment v8.
+- **Helper v8.0.0** is the current release of the open-source command-line tools and fixed renderer.
 
 The generated profile records both `prompt_version` and `schema_version`. Those fields show which assessment contract produced the report.
 
@@ -12,16 +12,18 @@ The generated profile records both `prompt_version` and `schema_version`. Those 
 
 | Assessment | Profile schema | Released | Status | What changed |
 | --- | --- | --- | --- | --- |
-| v7 | v8 | July 26, 2026 | Current | Added the optional multi-environment workflow so evidence from more than one computer can be validated and combined. |
-| v6 | v8 | July 21, 2026 | Compatible | Introduced the complete fourteen-badge evidence model and the current structured profile contract. A complete v6 report remains valid. |
-| v5 or earlier | v7 or earlier | Before July 21, 2026 | Update recommended | These reports use an older contract. Run Assessment v7 to get the current evidence model and output. |
+| v8 | v9 | August 2, 2026 | Current | Replaced the dense badge map with a concise matching profile. Added source-backed industry and subject expertise, normalized Claude and Codex activity, deterministic agent-operating ratios, fixed rendering, strict privacy fields, and anti-repetition rules. |
+| v7 | v8 | July 26, 2026 | Compatible | Added the optional multi-environment workflow. The report remains readable and can be updated to the current matching format. |
+| v6 | v8 | July 21, 2026 | Compatible | Introduced the complete fourteen-badge evidence model. The report remains readable and can be updated to the current matching format. |
+| v5 or earlier | v7 or earlier | Before July 21, 2026 | Update recommended | These reports use an older contract. Run Assessment v8 to get the current evidence and matching output. |
 
-If a complete v6 report covers all of your work, you do not need to rerun it. Rerun Assessment v7 when your work is spread across multiple computers or when you want the latest output.
+Compatible reports remain readable under their original rules. Run Assessment v8 when you want the current concise matching profile or when your recent work has changed.
 
 ## Open-source helper releases
 
 | Helper release | Released | Change |
 | --- | --- | --- |
+| v8.0.0 | August 2, 2026 | Added schema-v9 validation and fixed rendering, vendored the current prompt and sample, and added a cross-repository release check. |
 | v7.0.2 | July 30, 2026 | Clarified the version contract and corrected the Assessment v7 instructions. |
 | v7.0.1 | July 26, 2026 | Fixed command-line execution through package shims. |
 | v7.0.0 | July 26, 2026 | Added the multi-environment evidence tools. |

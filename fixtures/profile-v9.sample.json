@@ -1,0 +1,716 @@
+{
+  "schema_version": 9,
+  "prompt_version": 8,
+  "name": "Riley Okafor",
+  "focus": "A three-time software founder who uses coding agents to decide what companies should own and gets those systems into use.",
+  "headline": "A three-time software founder who uses coding agents to decide what companies should own and gets those systems into use.",
+  "generated_at": "2026-08-02T12:00:00Z",
+  "generated_by": {
+    "agent": "codex",
+    "model": "assessment-fixture"
+  },
+  "source_coverage": {
+    "sessions": {
+      "status": "included",
+      "usable_sessions": 580,
+      "from": "2025-08-19",
+      "to": "2026-07-24",
+      "limitations": [
+        "Retention differs by source."
+      ]
+    },
+    "github": {
+      "status": "included",
+      "collected_at": "2026-08-02",
+      "account_verified": true,
+      "limitations": []
+    },
+    "linkedin": {
+      "status": "included",
+      "collected_at": "2026-08-02",
+      "identity_verified": true,
+      "sections_seen": [
+        "about",
+        "experience"
+      ]
+    }
+  },
+  "windows": {
+    "claude": {
+      "from": "2026-06-11",
+      "to": "2026-07-24",
+      "sessions": 196,
+      "unknown_projects": 0
+    },
+    "codex": {
+      "from": "2025-08-19",
+      "to": "2026-07-24",
+      "sessions": 374,
+      "unknown_projects": 0
+    }
+  },
+  "cadence": {
+    "sessions_last_28d": 499,
+    "active_weeks_last_12": 12,
+    "sessions_per_observed_week": 47.5,
+    "last_session": "2026-07-24"
+  },
+  "activity_analysis": {
+    "coverage": {
+      "from": "2025-08-19",
+      "to": "2026-07-24",
+      "interactive_sessions": 570,
+      "scheduled_runs": 10,
+      "active_days": 120,
+      "comparability": "partial",
+      "source_windows": [
+        {
+          "source": "claude",
+          "from": "2026-06-11",
+          "to": "2026-07-24",
+          "sessions": 196,
+          "coverage_days": 44,
+          "retention": "retention-limited",
+          "limitations": []
+        },
+        {
+          "source": "codex",
+          "from": "2025-08-19",
+          "to": "2026-07-24",
+          "sessions": 374,
+          "coverage_days": 340,
+          "retention": "full-available",
+          "limitations": []
+        }
+      ],
+      "shared_window_sessions": [
+        {
+          "source": "claude",
+          "from": "2026-06-11",
+          "to": "2026-07-24",
+          "sessions": 196
+        },
+        {
+          "source": "codex",
+          "from": "2026-06-11",
+          "to": "2026-07-24",
+          "sessions": 341
+        }
+      ],
+      "limitations": [
+        "The cross-tool mix uses only the shared calendar window."
+      ]
+    },
+    "monthly": [],
+    "concurrency": {
+      "method": "15-minute event-activity buckets",
+      "median_interactive_sessions_per_active_day": 9,
+      "average_concurrent_sessions": 3.4,
+      "p95_concurrent_sessions": 12,
+      "peak_concurrent_sessions": 24,
+      "multi_session_days": 89,
+      "covered_active_days": 120,
+      "scheduled_runs_excluded": 10,
+      "limitations": []
+    },
+    "context_pressure": {},
+    "model_usage": [],
+    "trend_status": "partial",
+    "comparability_note": "Source retention differs, so the shared window is the only fair cross-tool comparison.",
+    "evolution_summary": "Agent activity is described, not scored."
+  },
+  "work_arcs": [
+    {
+      "id": "arc-1",
+      "label": "Professional-services operating platform",
+      "from": "2026-06-11",
+      "to": "2026-07-24",
+      "sources": [
+        "codex",
+        "claude"
+      ],
+      "delivery_state": "ongoing-operation",
+      "system_context": "established-system",
+      "primary_surface": "product-operations",
+      "secondary_surface": "data-models",
+      "change_type": "operational-automation",
+      "responsibility": "system-owner",
+      "authorship": "directed-reviewed",
+      "verification_mode": "independent",
+      "reviewer_governor": true,
+      "confidence": "high",
+      "evidence": [
+        "Repeated work covered delivery reporting, staffing views, review preparation, and data repair, with a separate acceptance review."
+      ],
+      "counterevidence": []
+    },
+    {
+      "id": "arc-2",
+      "label": "Cross-platform subscription product",
+      "from": "2026-06-18",
+      "to": "2026-07-24",
+      "sources": [
+        "codex"
+      ],
+      "delivery_state": "live-use",
+      "system_context": "early-system",
+      "primary_surface": "application-software",
+      "secondary_surface": "platform-infrastructure",
+      "change_type": "new-capability",
+      "responsibility": "system-owner",
+      "authorship": "directed-reviewed",
+      "verification_mode": "independent",
+      "reviewer_governor": true,
+      "confidence": "high",
+      "evidence": [
+        "Observed work covered payments, desktop notarization, mobile distribution, and an edge control plane, with a separate review pass."
+      ],
+      "counterevidence": []
+    },
+    {
+      "id": "arc-3",
+      "label": "Community matching and evidence platform",
+      "from": "2026-06-20",
+      "to": "2026-07-24",
+      "sources": [
+        "claude",
+        "codex"
+      ],
+      "delivery_state": "ongoing-operation",
+      "system_context": "established-system",
+      "primary_surface": "workflow-integration",
+      "secondary_surface": "product-operations",
+      "change_type": "experience-improvement",
+      "responsibility": "system-owner",
+      "authorship": "directed-reviewed",
+      "verification_mode": "independent",
+      "reviewer_governor": true,
+      "confidence": "high",
+      "evidence": [
+        "Observed work covered membership, outreach, events, profile evidence, and matching decisions, with independent checks before acceptance."
+      ],
+      "counterevidence": []
+    }
+  ],
+  "skills": [
+    {
+      "tag": "agent-orchestration",
+      "label": "Agent orchestration",
+      "category": "practice",
+      "tier": "deep",
+      "authorship": "directed-reviewed",
+      "sessions": 220,
+      "sources": [
+        "sessions"
+      ],
+      "evidence": "Repeated parallel assignments, review gates, and recovery loops."
+    },
+    {
+      "tag": "product-operations",
+      "label": "Product operations",
+      "category": "practice",
+      "tier": "deep",
+      "authorship": "directed-reviewed",
+      "sessions": 150,
+      "sources": [
+        "sessions"
+      ],
+      "evidence": "Repeated work linked business decisions to running internal products."
+    },
+    {
+      "tag": "data-integrity",
+      "label": "Data integrity",
+      "category": "data",
+      "tier": "working",
+      "authorship": "directed-reviewed",
+      "sessions": 80,
+      "sources": [
+        "sessions",
+        "github"
+      ],
+      "evidence": "Observed schema compatibility, sync freshness, recovery, and reporting work."
+    }
+  ],
+  "agent_practice": {
+    "tool_call_coverage": [
+      {
+        "source": "claude",
+        "from": "2026-06-11",
+        "to": "2026-07-24",
+        "sessions_scanned": 196,
+        "sessions_with_tool_metadata": 196,
+        "observed_calls": 612,
+        "limitations": [
+          "Coverage is limited to retained Claude sessions."
+        ]
+      }
+    ],
+    "tool_categories": [
+      {
+        "tag": "subagents",
+        "label": "Subagents",
+        "intensity": "recurring",
+        "active_sessions": 94,
+        "observed_calls": 612,
+        "sources": [
+          "claude"
+        ],
+        "evidence": "Parallel investigation and implementation runs recur with a separate review pass."
+      }
+    ],
+    "reusable_assets": [],
+    "permission_practice": {
+      "coverage": [],
+      "modes": [],
+      "elevated_requests": [],
+      "finding": "Permission behavior varies by harness and is not ranked.",
+      "guardrail_pattern": "Uses bounded roles and explicit review rules.",
+      "limitations": []
+    },
+    "interaction_metadata": {},
+    "limitations": []
+  },
+  "profile_view": {
+    "hero": {
+      "thesis": "A three-time software founder who uses coding agents to decide what companies should own and gets those systems into use.",
+      "source_note": "Career context comes from LinkedIn. Current depth comes from observed agent work.",
+      "evidence_ids": [
+        "ev-004",
+        "ev-003"
+      ]
+    },
+    "agent_footprint": {
+      "normalized_mix": {
+        "from": "2026-06-11",
+        "to": "2026-07-24",
+        "calendar_days": 44,
+        "total_sessions": 537,
+        "items": [
+          {
+            "source": "claude",
+            "sessions": 196,
+            "share": 0.365,
+            "sessions_per_calendar_day": 4.5
+          },
+          {
+            "source": "codex",
+            "sessions": 341,
+            "share": 0.635,
+            "sessions_per_calendar_day": 7.8
+          }
+        ],
+        "limitations": [
+          "This is session-record share, not time, preference, quality, or completed work."
+        ],
+        "evidence_ids": [
+          "ev-001"
+        ]
+      }
+    },
+    "agent_practice": {
+      "role": {
+        "summary": "Acts as the director and reviewer of an agent delivery system.",
+        "evidence_ids": [
+          "ev-002"
+        ]
+      },
+      "statistics": [
+        {
+          "tag": "median-active-day",
+          "label": "median interactive sessions per active day",
+          "value": 9,
+          "source_field": "/activity_analysis/concurrency/median_interactive_sessions_per_active_day",
+          "evidence_ids": [
+            "ev-002"
+          ]
+        },
+        {
+          "tag": "peak-concurrency",
+          "label": "peak concurrent interactive sessions",
+          "value": 24,
+          "source_field": "/activity_analysis/concurrency/peak_concurrent_sessions",
+          "evidence_ids": [
+            "ev-002"
+          ]
+        },
+        {
+          "tag": "subagent-sessions",
+          "label": "Claude sessions using subagents, of 196 scanned",
+          "value": 94,
+          "source_field": "/agent_practice/tool_categories/0/active_sessions",
+          "evidence_ids": [
+            "ev-002"
+          ]
+        }
+      ],
+      "workflow": [
+        {
+          "label": "Frame the outcome",
+          "summary": "Starts with the operating problem, then sets scope and acceptance rules.",
+          "evidence_ids": [
+            "ev-002"
+          ]
+        },
+        {
+          "label": "Split owned work",
+          "summary": "Assigns bounded workstreams with explicit ownership and completion tests.",
+          "evidence_ids": [
+            "ev-002"
+          ]
+        },
+        {
+          "label": "Check independently",
+          "summary": "Uses a separate review before accepting material implementation results.",
+          "evidence_ids": [
+            "ev-002"
+          ]
+        },
+        {
+          "label": "Operate and repair",
+          "summary": "Returns to delivered systems to fix failures and improve behavior.",
+          "evidence_ids": [
+            "ev-002"
+          ]
+        }
+      ],
+      "distinctive_fact": {
+        "summary": "Uses coding agents for operating decisions as well as implementation work.",
+        "evidence_ids": [
+          "ev-002"
+        ]
+      },
+      "reusable_system": {
+        "summary": "Reuses bounded reviewer briefs, source rules, and acceptance checks across projects.",
+        "evidence_ids": [
+          "ev-002"
+        ]
+      },
+      "limitation": {
+        "summary": "The captured sessions show direction and review, not direct code authorship.",
+        "evidence_ids": [
+          "ev-005"
+        ]
+      }
+    },
+    "industries": [
+      {
+        "tag": "ai-consulting",
+        "label": "AI consulting and custom software",
+        "context": "Mid-market and private-equity-backed companies",
+        "career_context": "Led advisory work for mid-market and private-equity-backed companies with responsibility for product and operating decisions.",
+        "observed_work": "Three classified arcs cover delivery systems, commercial workflows, client integrations, and post-launch operation.",
+        "depth": "deep-current",
+        "sources": [
+          "linkedin",
+          "sessions"
+        ],
+        "evidence_ids": [
+          "ev-004",
+          "ev-003"
+        ]
+      },
+      {
+        "tag": "enterprise-software",
+        "label": "Enterprise software and B2B SaaS",
+        "context": "Mobile products and conversation intelligence",
+        "career_context": "Led enterprise product launches through two acquisitions and sustained commercial ownership.",
+        "observed_work": "Current arcs cover CRM, delivery platforms, account reporting, data repair, and a cross-platform subscription product.",
+        "depth": "deep-sustained",
+        "sources": [
+          "linkedin",
+          "sessions"
+        ],
+        "evidence_ids": [
+          "ev-004",
+          "ev-003"
+        ]
+      },
+      {
+        "tag": "commercial-fabrication",
+        "label": "Commercial fabrication and interiors",
+        "context": "Offices, hospitality, and public spaces",
+        "career_context": "Six years as founder and chairman of a wood-and-metal fabrication company.",
+        "observed_work": "The retained agent window has no qualifying fabrication work arc, so current digital depth is not inferred.",
+        "depth": "career-depth",
+        "sources": [
+          "linkedin",
+          "assessment"
+        ],
+        "evidence_ids": [
+          "ev-004",
+          "ev-005"
+        ]
+      },
+      {
+        "tag": "consumer-software",
+        "label": "Consumer software",
+        "context": "Subscriptions and cross-platform release",
+        "career_context": "Product-company history establishes commercial ownership and adoption responsibility.",
+        "observed_work": "Two arcs include payments, desktop notarization, mobile test distribution, and consumer application operations.",
+        "depth": "working-current",
+        "sources": [
+          "linkedin",
+          "sessions"
+        ],
+        "evidence_ids": [
+          "ev-004",
+          "ev-003"
+        ]
+      }
+    ],
+    "subject_matter": [
+      {
+        "tag": "commercial-product-formation",
+        "label": "Commercial product formation",
+        "summary": "Connects product definition, pricing, delivery, and adoption during the first operating stage.",
+        "evidence_label": "Reviewed career history",
+        "evidence_ids": [
+          "ev-004"
+        ]
+      },
+      {
+        "tag": "agent-operating-models",
+        "label": "Agent operating models",
+        "summary": "Defines worker boundaries, reusable briefs, review gates, spend controls, model routing, and recurring jobs.",
+        "evidence_label": "Three observed work arcs",
+        "evidence_ids": [
+          "ev-002",
+          "ev-003"
+        ]
+      },
+      {
+        "tag": "professional-services-operations",
+        "label": "Professional-services operations",
+        "summary": "Builds staffing views, review preparation, account reporting, delivery vocabulary, and privacy boundaries.",
+        "evidence_label": "Two observed work arcs",
+        "evidence_ids": [
+          "ev-003"
+        ]
+      },
+      {
+        "tag": "evidence-data-integrity",
+        "label": "Evidence and data integrity",
+        "summary": "Works on schema compatibility, sync freshness, recovery, privacy limits, and reports that distinguish missing data.",
+        "evidence_label": "Three observed work arcs",
+        "evidence_ids": [
+          "ev-003"
+        ]
+      }
+    ],
+    "matching": {
+      "strongest_fit": {
+        "label": "Founder or product operator for owned software",
+        "summary": "Best for ambiguous company workflows that need a business decision, an agent operating model, and a working internal product.",
+        "evidence_ids": [
+          "ev-004",
+          "ev-003",
+          "ev-002"
+        ]
+      },
+      "add_specialist": {
+        "label": "When engineering risk dominates",
+        "summary": "Pair with dedicated security, database-scale, testing, continuous-integration, or reliability ownership.",
+        "evidence_ids": [
+          "ev-005"
+        ]
+      },
+      "not_shown": {
+        "label": "Direct code authorship",
+        "summary": "The retained evidence does not establish how much code the person wrote directly.",
+        "evidence_ids": [
+          "ev-005"
+        ]
+      }
+    },
+    "limits": [
+      {
+        "summary": "Cross-tool comparison uses only the 44-day shared window because source retention differs.",
+        "evidence_ids": [
+          "ev-001"
+        ]
+      },
+      {
+        "summary": "Career context is self-reported. Captured work remains the source for current depth.",
+        "evidence_ids": [
+          "ev-004",
+          "ev-005"
+        ]
+      },
+      {
+        "summary": "The report does not independently verify business outcomes or sole authorship.",
+        "evidence_ids": [
+          "ev-005"
+        ]
+      }
+    ]
+  },
+  "evidence_index": [
+    {
+      "id": "ev-004",
+      "source": "linkedin",
+      "kind": "career-context",
+      "summary": "Reviewed career history supports founder, industry, operating, and product-formation context.",
+      "from": "2009-01-01",
+      "to": "2026-08-02",
+      "arc_ids": []
+    },
+    {
+      "id": "ev-003",
+      "source": "sessions",
+      "kind": "work-arc",
+      "summary": "Three classified arcs support current delivery, operations, product, workflow, and data-integrity claims.",
+      "from": "2026-06-11",
+      "to": "2026-07-24",
+      "arc_ids": [
+        "arc-1",
+        "arc-2",
+        "arc-3"
+      ]
+    },
+    {
+      "id": "ev-002",
+      "source": "sessions",
+      "kind": "agent-practice",
+      "summary": "Observed sessions and tool metadata support the agent workflow, concurrency, subagent, and reusable-review claims.",
+      "from": "2026-06-11",
+      "to": "2026-07-24",
+      "arc_ids": [
+        "arc-1",
+        "arc-2",
+        "arc-3"
+      ]
+    },
+    {
+      "id": "ev-001",
+      "source": "assessment",
+      "kind": "activity",
+      "summary": "Deterministic aggregation found 196 Claude and 341 Codex sessions in the exact shared 44-day window.",
+      "from": "2026-06-11",
+      "to": "2026-07-24",
+      "arc_ids": []
+    },
+    {
+      "id": "ev-005",
+      "source": "assessment",
+      "kind": "limitation",
+      "summary": "The retained evidence does not independently prove outcomes, sole authorship, or unobserved current industry work.",
+      "from": "2026-06-11",
+      "to": "2026-08-02",
+      "arc_ids": []
+    }
+  ],
+  "matching_index": {
+    "industries": [
+      {
+        "tag": "ai-consulting",
+        "label": "AI consulting and custom software",
+        "depth": "deep",
+        "sources": [
+          "linkedin",
+          "sessions"
+        ],
+        "evidence_ids": [
+          "ev-004",
+          "ev-003"
+        ]
+      },
+      {
+        "tag": "enterprise-software",
+        "label": "Enterprise software and B2B SaaS",
+        "depth": "deep",
+        "sources": [
+          "linkedin",
+          "sessions"
+        ],
+        "evidence_ids": [
+          "ev-004",
+          "ev-003"
+        ]
+      },
+      {
+        "tag": "commercial-fabrication",
+        "label": "Commercial fabrication and interiors",
+        "depth": "career-context",
+        "sources": [
+          "linkedin"
+        ],
+        "evidence_ids": [
+          "ev-004"
+        ]
+      }
+    ],
+    "capabilities": [
+      {
+        "tag": "agent-orchestration",
+        "label": "Agent orchestration",
+        "depth": "deep",
+        "authorship": "directed-reviewed",
+        "arc_ids": [
+          "arc-1",
+          "arc-2",
+          "arc-3"
+        ],
+        "evidence_ids": [
+          "ev-002",
+          "ev-003"
+        ]
+      },
+      {
+        "tag": "product-operations",
+        "label": "Product operations",
+        "depth": "deep",
+        "authorship": "directed-reviewed",
+        "arc_ids": [
+          "arc-1",
+          "arc-2"
+        ],
+        "evidence_ids": [
+          "ev-003"
+        ]
+      }
+    ],
+    "delivery_states": [
+      {
+        "state": "ongoing-operation",
+        "arc_count": 2,
+        "arc_ids": [
+          "arc-1",
+          "arc-3"
+        ],
+        "evidence_ids": [
+          "ev-003"
+        ]
+      },
+      {
+        "state": "live-use",
+        "arc_count": 1,
+        "arc_ids": [
+          "arc-2"
+        ],
+        "evidence_ids": [
+          "ev-003"
+        ]
+      }
+    ],
+    "risk_gaps": [
+      {
+        "tag": "direct-authorship",
+        "label": "Direct code authorship",
+        "status": "unclear",
+        "implication": "Pair or verify when the project requires extensive direct coding by one named person.",
+        "evidence_ids": [
+          "ev-005"
+        ]
+      },
+      {
+        "tag": "specialist-risk",
+        "label": "Specialist engineering risk",
+        "status": "shallow",
+        "implication": "Add focused security, scale, testing, or reliability ownership when those risks dominate.",
+        "evidence_ids": [
+          "ev-005"
+        ]
+      }
+    ]
+  }
+}

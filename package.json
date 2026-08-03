@@ -1,7 +1,7 @@
 {
   "name": "ai-work-assessment",
-  "version": "7.0.2",
-  "description": "An agent-run, evidence-based profile of how you actually work with AI. Runs on your machine; the report is a local HTML file.",
+  "version": "8.0.0",
+  "description": "An agent-run, evidence-based matching profile built from local AI work, GitHub, and optional career context.",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -10,6 +10,7 @@
   "exports": {
     ".": "./src/validate.js",
     "./render": "./src/render.js",
+    "./profile-template": "./src/profile-template.js",
     "./artifacts": "./src/artifacts.js",
     "./curves": "./src/curves.js",
     "./storage": "./src/storage.js",
@@ -20,16 +21,19 @@
     "bin",
     "src",
     "docs",
+    "fixtures",
     "assessment-contract.json",
     "prompt.md",
     "CHANGELOG.md",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "RELEASING.md"
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "sync": "node scripts/sync-from-overflow.mjs",
-    "sync:check": "node scripts/sync-from-overflow.mjs --check"
+    "sync:check": "node scripts/sync-from-overflow.mjs --check",
+    "release:check": "npm run sync:check && npm test && node scripts/release-check.mjs"
   },
   "engines": {
     "node": ">=20"

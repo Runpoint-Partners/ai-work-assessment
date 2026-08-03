@@ -12,12 +12,11 @@ test("assessment, schema, and helper versions stay explicit and synchronized", a
 
   assert.equal(pkg.version, contract.helperVersion);
   assert.equal(Number(pkg.version.split(".")[0]), contract.assessmentPromptVersion);
-  assert.match(prompt, new RegExp(`prompt version ${contract.assessmentPromptVersion}, profile schema version ${contract.profileSchemaVersion}`));
-  assert.ok(prompt.includes(`v${contract.assessmentPromptVersion}/schema-v${contract.profileSchemaVersion} contract`));
+  assert.ok(prompt.includes(`# Overflow AI Work Assessment v${contract.assessmentPromptVersion}`));
+  assert.ok(prompt.includes(`profile schema ${contract.profileSchemaVersion} and prompt version ${contract.assessmentPromptVersion}`));
   assert.ok(prompt.includes(`"prompt_version": ${contract.assessmentPromptVersion}`));
   assert.ok(prompt.includes(`"schema_version": ${contract.profileSchemaVersion}`));
-  assert.ok(!prompt.includes(`v${contract.minimumCompatiblePromptVersion}/schema-v${contract.profileSchemaVersion} contract`));
   assert.ok(readme.includes(`Assessment v${contract.assessmentPromptVersion}`));
   assert.ok(readme.includes(`helper release is **v${contract.helperVersion}**`));
-  assert.ok(readme.includes(`prompt-v${contract.minimumCompatiblePromptVersion}/schema-v${contract.profileSchemaVersion} profiles remain compatible`));
+  assert.ok(readme.includes("prompt-v6/schema-v8 and prompt-v7/schema-v8 profiles remain compatible"));
 });

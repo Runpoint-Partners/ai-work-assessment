@@ -135,7 +135,7 @@ export function validateBundle(input) {
 
   return {
     bundle_schema_version: BUNDLE_SCHEMA_VERSION,
-    collector_prompt_version: positiveInt(bundle.collector_prompt_version) || 7,
+    collector_prompt_version: positiveInt(bundle.collector_prompt_version) || 8,
     environment: { id: bundle.environment.id, kind, ...(label ? { label } : {}) },
     collected_at: collectedAt,
     source_coverage: sourceCoverage,

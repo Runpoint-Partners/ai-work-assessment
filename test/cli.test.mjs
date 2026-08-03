@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = join(ROOT, "bin", "cli.mjs");
 const FIXTURE = join(ROOT, "fixtures", "profile-v6.html");
+const CURRENT_FIXTURE = join(ROOT, "fixtures", "profile-v9.sample.json");
 
 function run(args, options = {}) {
   return execFileSync(process.execPath, [CLI, ...args], { encoding: "utf8", ...options });
@@ -97,15 +98,44 @@ test("render is idempotent", () => {
   assert.equal(readFileSync(first, "utf8"), readFileSync(second, "utf8"));
 });
 
+test("current schema renders the concise standalone matching profile", () => {
+  const workdir = mkdtempSync(join(tmpdir(), "awa-v9-cli-"));
+  const outPath = join(workdir, "profile.html");
+  run(["render", CURRENT_FIXTURE, "--out", outPath]);
+  const html = readFileSync(outPath, "utf8");
+
+  for (const heading of [
+    "Observed agent activity",
+    "Agent operating profile",
+    "Career &amp; industries",
+    "04 / Subject matter",
+    "Matching decision",
+  ]) assert.ok(html.includes(heading), `missing current heading: ${heading}`);
+  assert.match(html, /AI Work Assessment \/ Matching profile/);
+  assert.doesNotMatch(html, /overflowbuilders\.com|fetch\s*\(/i);
+  assert.doesNotMatch(html, /data-overflow-cohort-gate|Example distribution/);
+});
+
+test("current schema validation reports matching fields", () => {
+  const stdout = run(["validate", CURRENT_FIXTURE]);
+  assert.match(stdout, /helper release\s+v8\.0\.0/);
+  assert.match(stdout, /assessment prompt\s+v8/);
+  assert.match(stdout, /profile schema\s+v9/);
+  assert.match(stdout, /visible industries\s+4/);
+  assert.match(stdout, /subject areas\s+4/);
+  assert.match(stdout, /shared-window mix\s+claude 36\.5% · codex 63\.5%/);
+  assert.match(stdout, /Valid: the profile satisfies its schema-v9 rules\./);
+});
+
 test("validate prints a field-level report", () => {
   const stdout = run(["validate", FIXTURE]);
   assert.match(stdout, /name\s+Riley Okafor/);
-  assert.match(stdout, /helper release\s+v7\.0\.2/);
+  assert.match(stdout, /helper release\s+v8\.0\.0/);
   assert.match(stdout, /assessment prompt\s+v6/);
   assert.match(stdout, /profile schema\s+v8/);
   assert.match(stdout, /badge map complete\s+yes \(14\/14\)/);
   assert.match(stdout, /work arcs\s+6/);
-  assert.match(stdout, /Valid: the profile satisfies the schema-8 rules\./);
+  assert.match(stdout, /Valid: the profile satisfies its schema-v8 rules\./);
 });
 
 test("rejects a report containing a live credential", () => {

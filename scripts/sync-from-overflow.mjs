@@ -43,6 +43,24 @@ const MODULES = [
     raw: true,
   },
   {
+    target: "prompt.md",
+    source: "public/apply/prompt.md",
+    transforms: [],
+    raw: true,
+  },
+  {
+    target: "docs/profile-v9-contract.md",
+    source: "docs/profile-v9-contract.md",
+    transforms: [],
+    raw: true,
+  },
+  {
+    target: "fixtures/profile-v9.sample.json",
+    source: "scripts/fixtures/profile-v9.golden.json",
+    transforms: [],
+    raw: true,
+  },
+  {
     target: "src/evidence-bundle.js",
     source: "scripts/lib/evidence-bundle.mjs",
     transforms: [],
@@ -67,6 +85,38 @@ function clean(value, max = 500) {
     target: "src/render.js",
     source: "functions/api/_profile_document.js",
     transforms: [
+      {
+        note: "use the vendored schema-v9 template",
+        find: 'import { renderProfileV9Document } from "../../public/apply/profile-template.mjs";',
+        replace: 'import { renderProfileV9Document } from "./profile-template.js";',
+        count: 1,
+      },
+      {
+        note: "render schema v9 with standalone branding and no destination adapter",
+        find: `  if (Number(safeProfile.schema_version) >= 9) {
+    return renderProfileV9Document(safeProfile, options);
+  }`,
+        replace: `  if (Number(safeProfile.schema_version) >= 9) {
+    return renderProfileV9Document(safeProfile, {
+      ...options,
+      localPreview: true,
+      cohortMode: config.cohortComparison ? "loading" : "none",
+      showUpload: false,
+      branding: {
+        siteName: config.siteName,
+        accentColor: config.accentColor,
+        memberFallback: "Unnamed practitioner",
+        titleSuffix: \`\${config.siteName} matching profile\`,
+        headerLabel: \`\${config.siteName} / Matching profile\`,
+        footerLabel: \`\${config.siteName} / evidence-based profile\`,
+        manageUrl: null,
+        shareLabel: \`\${config.siteName.toUpperCase()} / MATCHING PROFILE\`,
+        shareFooter: config.shareCardFooter,
+      },
+    });
+  }`,
+        count: 1,
+      },
       {
         note: "route the hardcoded site URL through config",
         find: 'const SITE_URL = "https://austin.overflowbuilders.com";',
@@ -167,6 +217,11 @@ function footer() {
     ],
   },
   {
+    target: "src/profile-template.js",
+    source: "public/apply/profile-template.mjs",
+    transforms: [],
+  },
+  {
     target: "src/artifacts.js",
     source: "functions/api/_profile_artifacts.js",
     transforms: [
@@ -237,7 +292,7 @@ function footer() {
       },
       {
         note: "badge definitions link is optional",
-        find: '<a href="/badges/">Definitions &amp; thresholds →</a>',
+        find: '<a href="/assessment/">Run the current assessment →</a>',
         replace: "${badgeDocsLink()}",
         count: 1,
       },

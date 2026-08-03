@@ -68,6 +68,9 @@ export function injectOperatorProfileArtifacts(html, { benchmark = null, local =
     .replace(RENDERED_ARTIFACT_SCRIPT_RE, "");
   output = removeAlternateLenses(output);
   const profile = parseProfileData(output);
+  // Schema v9 uses the fixed matching-profile template. Badge grids and share
+  // cards are legacy presentation artifacts and must not be injected into it.
+  if (Number(profile?.schema_version) >= 9) return output;
   if (!usesOperatorBadgeSchema(profile) || !profile?.badges || typeof profile.badges !== "object") return output;
   const badges = badgeEntries(profile);
   if (!badges.length || !/<\/head>/i.test(output) || !/<\/body>/i.test(output)) return output;
@@ -184,7 +187,8 @@ function badgeProofNote(badge) {
 }
 
 function usesOperatorBadgeSchema(profile) {
-  return Number(profile?.schema_version) >= 7 || Number(profile?.prompt_version) >= 8;
+  const schemaVersion = Number(profile?.schema_version) || 1;
+  return schemaVersion < 9 && (schemaVersion >= 7 || Number(profile?.prompt_version) >= 8);
 }
 
 function missingBadgeEntries(profile, awarded) {

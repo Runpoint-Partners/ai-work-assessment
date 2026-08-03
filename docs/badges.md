@@ -1,3 +1,7 @@
+# Legacy schema-v8 badge reference
+
+Assessment v8 and profile schema v9 do not generate or display badges. This file remains only for validating and explaining older schema-v8 reports.
+
 # The badge system
 
 Badges name what your work shows across three parts of an ideal operator engineer: **technical chops**, **business know-how**, and **good judgment**. Each badge is a navigational lens into cited work — not a substitute for the proof behind it.
