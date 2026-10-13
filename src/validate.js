@@ -63,7 +63,20 @@ const PROFILE_INDUSTRY_DEPTHS = ["deep-current", "deep-sustained", "working-curr
 const PROFILE_MIX_SOURCES = ["claude", "codex"];
 // Schema 10: who the work was for, and what non-coding sessions were spent on.
 export const WORK_CONTEXTS = ["client", "employer", "personal", "open-source", "unclear"];
+// Self-chosen work: the arcs a side-projects claim rests on.
+const SIDE_PROJECT_CONTEXTS = ["personal", "open-source"];
 const OTHER_WORK_KINDS = ["research", "writing", "planning", "data-analysis", "operations", "design", "other"];
+const SOURCE_WINDOW_RETENTION = ["full-available", "retention-limited", "unknown"];
+// The work-arc fields the sanitizer requires. An arc with an invalid value is
+// dropped, so schema 10 rejects it up front instead of losing it silently.
+const WORK_ARC_ENUMS = {
+  delivery_state: ["exploration", "working-prototype", "live-use", "ongoing-operation"],
+  system_context: ["greenfield", "early-system", "established-system", "mature-constrained", "unknown"],
+  primary_surface: WORK_SURFACES,
+  change_type: ["new-capability", "integration", "experience-improvement", "architecture-refactor", "migration", "reliability-performance", "incident-recovery", "analysis-decision-support", "operational-automation"],
+  responsibility: ["directed-task", "scoped-contributor", "workstream-owner", "system-owner"],
+  confidence: ["high", "medium", "low"],
+};
 const PROFILE_V9_TOP_LEVEL_KEYS = new Set([
   "schema_version", "prompt_version", "name", "focus", "headline", "generated_at", "generated_by",
   "collection_summary", "source_coverage", "windows", "cadence", "activity_analysis", "github", "work_arcs",
@@ -284,6 +297,27 @@ function validateRawProfileV10(profile, view) {
   requireRawArray(profile.work_arcs, "work_arcs").forEach((arc, index) => {
     requireRawString(arc?.work_context, `work_arcs[${index}].work_context`);
     if (!WORK_CONTEXTS.includes(arc.work_context)) throw new ProfileError(`work_arcs[${index}].work_context is invalid.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    requireRawString(arc.id, `work_arcs[${index}].id`);
+    requireRawString(arc.label, `work_arcs[${index}].label`);
+    for (const [key, values] of Object.entries(WORK_ARC_ENUMS)) {
+      if (!values.includes(arc[key])) throw new ProfileError(`work_arcs[${index}].${key} is invalid.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    }
+  });
+
+  // The ledgers below are checked against these counts, so they must be real
+  // integers. The sanitizer would otherwise coerce or drop them.
+  const coverage = requireRawObject(profile.activity_analysis?.coverage, "activity_analysis.coverage");
+  requireRawNonNegativeInt(coverage.interactive_sessions, "activity_analysis.coverage.interactive_sessions");
+  requireRawArray(coverage.source_windows, "activity_analysis.coverage.source_windows").forEach((row, index) => {
+    if (!SOURCE_WINDOW_RETENTION.includes(row?.retention)) {
+      throw new ProfileError(`activity_analysis.coverage.source_windows[${index}].retention must be one of ${SOURCE_WINDOW_RETENTION.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    }
+  });
+  requireRawArray(profile.agent_practice?.tool_call_coverage, "agent_practice.tool_call_coverage").forEach((item, index) => {
+    const path = `agent_practice.tool_call_coverage[${index}]`;
+    const row = requireRawObject(item, path);
+    if (!AGENT_SOURCES.includes(row.source)) throw new ProfileError(`${path}.source must be one of ${AGENT_SOURCES.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    for (const key of ["sessions_scanned", "sessions_with_tool_metadata"]) requireRawNonNegativeInt(row[key], `${path}.${key}`);
   });
 
   const mixPath = "activity_analysis.work_mix";
@@ -579,7 +613,7 @@ export function sanitizeProfile(profile) {
             to: clean(item?.to, 30),
             sessions: nonNegativeInt(item?.sessions),
             coverage_days: nonNegativeInt(item?.coverage_days),
-            retention: allowed(item?.retention, ["full-available", "retention-limited", "unknown"]),
+            retention: allowed(item?.retention, SOURCE_WINDOW_RETENTION),
             limitations: cleanStrings(item?.limitations, 8, 300),
           }))
           .filter((item) => item.source && item.from && item.to && item.retention)
@@ -696,17 +730,17 @@ export function sanitizeProfile(profile) {
     from: clean(arc?.from, 30),
     to: clean(arc?.to, 30),
     sources: cleanStrings(arc?.sources, 5, 30),
-    delivery_state: allowed(arc?.delivery_state, ["exploration", "working-prototype", "live-use", "ongoing-operation"]),
-    system_context: allowed(arc?.system_context, ["greenfield", "early-system", "established-system", "mature-constrained", "unknown"]),
-    primary_surface: allowed(arc?.primary_surface, WORK_SURFACES),
+    delivery_state: allowed(arc?.delivery_state, WORK_ARC_ENUMS.delivery_state),
+    system_context: allowed(arc?.system_context, WORK_ARC_ENUMS.system_context),
+    primary_surface: allowed(arc?.primary_surface, WORK_ARC_ENUMS.primary_surface),
     secondary_surface: allowed(arc?.secondary_surface, ["", ...WORK_SURFACES]),
-    change_type: allowed(arc?.change_type, ["new-capability", "integration", "experience-improvement", "architecture-refactor", "migration", "reliability-performance", "incident-recovery", "analysis-decision-support", "operational-automation"]),
-    responsibility: allowed(arc?.responsibility, ["directed-task", "scoped-contributor", "workstream-owner", "system-owner"]),
+    change_type: allowed(arc?.change_type, WORK_ARC_ENUMS.change_type),
+    responsibility: allowed(arc?.responsibility, WORK_ARC_ENUMS.responsibility),
     ...(usesProfileV9(profile) ? { authorship: allowed(arc?.authorship, ["direct", "directed-reviewed", "mixed", "unclear"]) } : {}),
     ...(usesProfileV9(profile) ? { verification_mode: allowed(arc?.verification_mode, ["independent", "self-check", "unclear"]) } : {}),
     ...(usesProfileV10(profile) ? { work_context: allowed(arc?.work_context, WORK_CONTEXTS) } : {}),
     reviewer_governor: arc?.reviewer_governor === true,
-    confidence: allowed(arc?.confidence, ["high", "medium", "low"]),
+    confidence: allowed(arc?.confidence, WORK_ARC_ENUMS.confidence),
     evidence: cleanStrings(arc?.evidence, 8, 500),
     counterevidence: cleanStrings(arc?.counterevidence, 8, 500),
   }), (arc) => arc.id && arc.label && arc.delivery_state && arc.system_context
@@ -1266,7 +1300,7 @@ export function validateProfileV9(profile) {
     view.agent_footprint?.normalized_mix,
     profile.activity_analysis?.coverage?.source_windows,
     profile.activity_analysis?.coverage?.shared_window_sessions,
-    profile.agent_practice?.tool_call_coverage,
+    profile,
   );
   validateOperatingRatioInputs(profile);
   if (v10) validateProfileV10Ledgers(profile);
@@ -1376,8 +1410,18 @@ function validateProfileV10Ledgers(profile) {
   // session without it is unclassified, so classified sessions can never
   // outnumber the sessions that have tool metadata.
   const classified = mix.coding_sessions + mix.other_sessions;
-  const withToolMetadata = (Array.isArray(profile.agent_practice?.tool_call_coverage) ? profile.agent_practice.tool_call_coverage : [])
-    .reduce((sum, item) => sum + nonNegativeInt(item.sessions_with_tool_metadata), 0);
+  const toolCoverage = Array.isArray(profile.agent_practice?.tool_call_coverage) ? profile.agent_practice.tool_call_coverage : [];
+  // Tool metadata is read from scanned sessions, and scanned sessions come
+  // from the recorded history, so neither count can outgrow its source.
+  if (toolCoverage.some((item) => item.sessions_with_tool_metadata > item.sessions_scanned)) {
+    throw new ProfileError("Sessions with tool metadata cannot exceed the sessions scanned for that source.", 422, "PROFILE_V10_WORK_MIX_INVALID");
+  }
+  const withToolMetadata = toolCoverage.reduce((sum, item) => sum + nonNegativeInt(item.sessions_with_tool_metadata), 0);
+  const recordedSessions = nonNegativeInt(profile.activity_analysis?.coverage?.interactive_sessions)
+    + nonNegativeInt(profile.activity_analysis?.coverage?.scheduled_runs);
+  if (withToolMetadata > recordedSessions) {
+    throw new ProfileError("Sessions with tool metadata cannot exceed the recorded interactive sessions and scheduled runs.", 422, "PROFILE_V10_WORK_MIX_INVALID");
+  }
   if (classified > withToolMetadata) {
     throw new ProfileError("Coding and other-work sessions need tool metadata; sessions without it are unclassified.", 422, "PROFILE_V10_WORK_MIX_INVALID");
   }
@@ -1391,32 +1435,53 @@ function validateProfileV10Ledgers(profile) {
   if (coverage.sessions_scanned !== classified || coverage.sessions_using_assets > coverage.sessions_scanned) {
     throw new ProfileError("Asset coverage must scan exactly the coding and other-work sessions, and cannot count more sessions than it scanned.", 422, "PROFILE_V10_ASSET_COVERAGE_INVALID");
   }
-  const assetsInUse = (Array.isArray(profile.agent_practice?.reusable_assets) ? profile.agent_practice.reusable_assets : [])
-    .some((item) => item.active_sessions > 0);
-  if (assetsInUse && coverage.sessions_using_assets === 0) {
+  const assets = Array.isArray(profile.agent_practice?.reusable_assets) ? profile.agent_practice.reusable_assets : [];
+  if (assets.some((item) => item.active_sessions > 0) && coverage.sessions_using_assets === 0) {
     throw new ProfileError("Reusable assets with active sessions require asset coverage above zero.", 422, "PROFILE_V10_ASSET_COVERAGE_INVALID");
+  }
+  // Every session that ran an asset is a session that used assets.
+  if (assets.some((item) => item.active_sessions > coverage.sessions_using_assets)) {
+    throw new ProfileError("A reusable asset cannot be active in more sessions than used any asset.", 422, "PROFILE_V10_ASSET_COVERAGE_INVALID");
   }
 }
 
-// side_projects is present exactly when a work arc is personal, and it must
-// cite a work-arc record for one of those arcs.
+// side_projects is present exactly when a work arc is personal or
+// open-source, and it must cite a work-arc record for one of those arcs.
 function validateSideProjects(profile, evidenceById) {
-  const personalArcIds = new Set((profile.work_arcs || []).filter((arc) => arc.work_context === "personal").map((arc) => arc.id));
+  const sideArcIds = new Set((profile.work_arcs || []).filter((arc) => SIDE_PROJECT_CONTEXTS.includes(arc.work_context)).map((arc) => arc.id));
   const claim = profile.profile_view.side_projects;
-  if (!personalArcIds.size) {
-    if (claim !== null) throw new ProfileError("side_projects must be null when no work arc is personal.", 422, "PROFILE_V10_SIDE_PROJECTS_INVALID");
+  if (!sideArcIds.size) {
+    if (claim !== null) throw new ProfileError("side_projects must be null when no work arc is personal or open-source.", 422, "PROFILE_V10_SIDE_PROJECTS_INVALID");
     return;
   }
   if (!validClaim(claim)) {
-    throw new ProfileError("A personal work arc requires a side_projects claim.", 422, "PROFILE_V10_SIDE_PROJECTS_INVALID");
+    throw new ProfileError("A personal or open-source work arc requires a side_projects claim.", 422, "PROFILE_V10_SIDE_PROJECTS_INVALID");
   }
-  const citesPersonalArc = claim.evidence_ids.some((id) => {
+  const citesSideArc = claim.evidence_ids.some((id) => {
     const record = evidenceById.get(id);
-    return record?.kind === "work-arc" && (record.arc_ids || []).some((arcId) => personalArcIds.has(arcId));
+    return record?.kind === "work-arc" && (record.arc_ids || []).some((arcId) => sideArcIds.has(arcId));
   });
-  if (!citesPersonalArc) {
-    throw new ProfileError("side_projects must cite a work-arc record for a personal arc.", 422, "PROFILE_V10_SIDE_PROJECTS_INVALID");
+  if (!citesSideArc) {
+    throw new ProfileError("side_projects must cite a work-arc record for a personal or open-source arc.", 422, "PROFILE_V10_SIDE_PROJECTS_INVALID");
   }
+}
+
+// Where a harness the person never used would still leave a trace. A
+// single-agent profile must have none, and its recorded windows must hold
+// every interactive session.
+function unusedSourceTraces(profile, source) {
+  const traces = [];
+  const listed = (items) => (Array.isArray(items) ? items : []);
+  const names = (item) => listed(item?.sources);
+  if (listed(profile.agent_practice?.tool_call_coverage).some((item) => item?.source === source)) traces.push("agent_practice.tool_call_coverage");
+  if (listed(profile.agent_practice?.tool_categories).some((item) => names(item).includes(source))) traces.push("agent_practice.tool_categories");
+  if (listed(profile.agent_practice?.reusable_assets).some((item) => names(item).includes(source))) traces.push("agent_practice.reusable_assets");
+  if (listed(profile.work_arcs).some((item) => names(item).includes(source))) traces.push("work_arcs");
+  if (listed(profile.activity_analysis?.model_usage).some((item) => item?.source === source)) traces.push("activity_analysis.model_usage");
+  const coverage = isObject(profile.activity_analysis?.coverage) ? profile.activity_analysis.coverage : {};
+  const windowed = listed(coverage.source_windows).reduce((sum, item) => sum + nonNegativeInt(item?.sessions), 0);
+  if (nonNegativeInt(coverage.interactive_sessions) > windowed) traces.push("activity_analysis.coverage.interactive_sessions");
+  return traces;
 }
 
 function validateOperatingRatioInputs(profile) {
@@ -1442,7 +1507,7 @@ function validateOperatingRatioInputs(profile) {
   }
 }
 
-function validateNormalizedMix(mix, sourceWindows = [], sharedWindowSessions = [], toolCallCoverage = []) {
+function validateNormalizedMix(mix, sourceWindows = [], sharedWindowSessions = [], profile = {}) {
   if (mix === null) {
     if (!Array.isArray(sharedWindowSessions) || sharedWindowSessions.length !== 0) {
       throw new ProfileError("An unavailable normalized mix requires an empty shared-window ledger.", 422, "PROFILE_V9_MIX_LEDGER_INVALID");
@@ -1453,10 +1518,9 @@ function validateNormalizedMix(mix, sourceWindows = [], sharedWindowSessions = [
     // absent everywhere, so a source can't be dropped just to skip the mix.
     const missing = PROFILE_MIX_SOURCES.filter((source, index) => !observedBySource[index].length);
     if (missing.length) {
-      const scanned = (source) => (Array.isArray(toolCallCoverage) ? toolCallCoverage : [])
-        .some((item) => item?.source === source && Number.isFinite(item?.sessions_scanned) && item.sessions_scanned > 0);
-      if (missing.some(scanned)) {
-        throw new ProfileError("An unavailable normalized mix requires recorded Claude and Codex windows.", 422, "PROFILE_V9_MIX_WINDOW_INVALID");
+      const traces = [...new Set(missing.flatMap((source) => unusedSourceTraces(profile, source)))];
+      if (traces.length) {
+        throw new ProfileError(`An unavailable normalized mix requires recorded Claude and Codex windows. A source without a window still appears in ${traces.join(", ")}.`, 422, "PROFILE_V9_MIX_WINDOW_INVALID");
       }
       return;
     }

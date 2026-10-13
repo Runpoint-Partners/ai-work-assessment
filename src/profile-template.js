@@ -150,7 +150,7 @@ export function renderProfileV9Document(profile = {}, {
       ${sourceMarkers(hero.evidence_ids, evidence, true)}
     </div>
   </section>
-  ${agentFootprint(view.agent_footprint, cohort, evidence, cohortMode)}
+  ${agentFootprint(view.agent_footprint, cohort, evidence, cohortMode, safeProfile.activity_analysis?.coverage)}
   ${codingAndOtherWork(safeProfile.activity_analysis?.work_mix)}
   ${agentPractice(view.agent_practice, safeProfile, evidence)}
   ${industries(view.industries, evidence)}
@@ -170,13 +170,15 @@ ${serialized}
 </html>`;
 }
 
-function agentFootprint(footprintValue, cohort, evidence, cohortMode) {
+function agentFootprint(footprintValue, cohort, evidence, cohortMode, coverage) {
   const footprint = isRecord(footprintValue) ? footprintValue : {};
   const mix = isRecord(footprint.normalized_mix) ? footprint.normalized_mix : {};
   const items = list(mix.items).filter(isRecord).slice(0, 2);
-  const mixMarkup = items.length ? normalizedMix(mix, items, evidence) : emptyMix();
+  const single = items.length ? "" : singleMixSource(coverage);
+  const mixMarkup = items.length ? normalizedMix(mix, items, evidence) : single ? singleSourceMix(single, coverage) : emptyMix();
+  const mixNote = single ? `All recorded sessions come from ${sourceLabel(single)}.` : "Tool mix uses the same dates for both tools.";
   return `<section class="shell section reveal" id="agent-footprint" aria-labelledby="agent-footprint-title">
-    <div class="section-head"><span class="section-index">01 / Agent footprint</span><div><h2 id="agent-footprint-title">Observed agent activity.</h2><p>${cohortMode === "none" ? "Activity counts use retained local history." : "Network placement uses submitted profiles that follow the same rules."} Tool mix uses the same dates for both tools.</p></div></div>
+    <div class="section-head"><span class="section-index">01 / Agent footprint</span><div><h2 id="agent-footprint-title">Observed agent activity.</h2><p>${cohortMode === "none" ? "Activity counts use retained local history." : "Network placement uses submitted profiles that follow the same rules."} ${escapeHtml(mixNote)}</p></div></div>
   </section>
   ${cohort}
   <section class="shell section section-continuation reveal" id="normalized-mix" aria-label="Normalized agent source mix">${mixMarkup}</section>`;
@@ -201,6 +203,28 @@ function normalizedMix(mix, items, evidence) {
     ${limitations.length > 1 ? `<div class="limit-list full-only">${limitations.slice(1).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>` : ""}
     ${sourceMarkers(mix.evidence_ids, evidence, true)}
   </div>`;
+}
+
+// The one of Claude Code and Codex with recorded windows, when the other has
+// none. A single-tool history has no side-by-side split to show.
+function singleMixSource(coverageValue) {
+  const windows = list(coverageValue?.source_windows).filter(isRecord);
+  const recorded = ["claude", "codex"].filter((source) => windows.some((item) => value(item.source) === source));
+  return recorded.length === 1 ? recorded[0] : "";
+}
+
+function singleSourceWindow(source, coverageValue) {
+  const windows = list(coverageValue?.source_windows).filter((item) => isRecord(item) && value(item.source) === source);
+  return {
+    sessions: windows.reduce((sum, item) => sum + (number(item.sessions) || 0), 0),
+    from: windows.map((item) => value(item.from)).filter(Boolean).sort()[0] || "",
+    to: windows.map((item) => value(item.to)).filter(Boolean).sort().at(-1) || "",
+  };
+}
+
+function singleSourceMix(source, coverageValue) {
+  const window = singleSourceWindow(source, coverageValue);
+  return `<div class="empty-state"><span class="source">Single-tool history</span><h3>${escapeHtml(sourceLabel(source))} only</h3><p>${escapeHtml(formatNumber(window.sessions))} session records from ${escapeHtml(dateRange(window.from, window.to))}, all in ${escapeHtml(sourceLabel(source))}. A Claude / Codex split needs history from both tools over the same dates, so none is shown.</p></div>`;
 }
 
 function emptyMix() {
@@ -359,6 +383,8 @@ function codingAndOtherWork(mixValue) {
   </section>`;
 }
 
+// Applied at render time, so the cut points can change without anyone
+// re-running the assessment.
 const SETUP_BANDS = [
   { minimum: 11, label: "Extensive setup" },
   { minimum: 4, label: "Customized setup" },
@@ -376,6 +402,11 @@ const ASSET_KIND_LABELS = {
 function setupFootprint(practiceValue) {
   const coverage = isRecord(practiceValue?.reusable_asset_coverage) ? practiceValue.reusable_asset_coverage : null;
   if (!coverage) return "";
+  // With no tool records read, an empty asset list means nothing was
+  // measured, not a stock setup.
+  if (!number(coverage.sessions_scanned)) {
+    return `<div class="practice-proof setup-footprint"><h3>Setup</h3><div><p class="setup-band">Setup not measured</p><p>No sessions had tool records, so reusable skills, commands, MCPs, hooks, and templates could not be counted.</p></div></div>`;
+  }
   // One asset can appear once per source or relationship; count it once.
   const seen = new Set();
   const assets = list(practiceValue.reusable_assets).filter(isRecord).filter((item) => {
@@ -405,13 +436,18 @@ function setupFootprint(practiceValue) {
   return `<div class="practice-proof setup-footprint"><h3>Setup</h3><div><p class="setup-band">${escapeHtml(band.label)}</p><p>${escapeHtml(counts)}</p>${share ? `<p>${escapeHtml(share)}</p>` : ""}</div></div>`;
 }
 
-// Schema 10. The side-projects claim, with the personal work examples behind it.
+// Schema 10. The side-projects claim, with the personal and open-source work
+// examples behind it.
 function sideProjects(claimValue, profile, evidence) {
   const item = claim(claimValue);
   if (!item.summary) return "";
-  const personal = list(profile?.work_arcs).filter((arc) => isRecord(arc) && value(arc.work_context) === "personal");
-  const inUse = personal.filter((arc) => ["live-use", "ongoing-operation"].includes(value(arc.delivery_state))).length;
-  const basis = `${personal.length} personal work example${personal.length === 1 ? "" : "s"}${inUse ? ` · ${inUse} in real use` : ""}`;
+  const arcs = list(profile?.work_arcs).filter(isRecord);
+  const personal = arcs.filter((arc) => value(arc.work_context) === "personal");
+  const openSource = arcs.filter((arc) => value(arc.work_context) === "open-source");
+  const total = personal.length + openSource.length;
+  const inUse = [...personal, ...openSource].filter((arc) => ["live-use", "ongoing-operation"].includes(value(arc.delivery_state))).length;
+  const kinds = [personal.length ? `${personal.length} personal` : "", openSource.length ? `${openSource.length} open-source` : ""].filter(Boolean).join(" and ");
+  const basis = `${kinds} work example${total === 1 ? "" : "s"}${inUse ? ` · ${inUse} in real use` : ""}`;
   return `<div class="practice-proof side-projects"><h3>Side projects</h3><div><p>${escapeHtml(item.summary)}</p><small>${escapeHtml(basis)}</small>${sourceMarkers(item.evidence_ids, evidence)}</div></div>`;
 }
 
@@ -464,6 +500,7 @@ function shareCard(view, profile, evidence, presentation) {
   const items = list(mix.items).filter(isRecord);
   const claude = items.find((item) => value(item.source) === "claude");
   const codex = items.find((item) => value(item.source) === "codex");
+  const coverage = profile.activity_analysis?.coverage;
   const role = claim(view.agent_practice?.role);
   const industry = list(view.industries).find(isRecord) || {};
   const fit = isRecord(view.matching?.strongest_fit) ? view.matching.strongest_fit : {};
@@ -480,18 +517,37 @@ function shareCard(view, profile, evidence, presentation) {
         <text x="1146" y="69" fill="#928a7e" text-anchor="end" font-family="monospace" font-size="12" letter-spacing="1">EVIDENCE, NOT VIBES</text>
         <text x="54" y="166" fill="#f4f0e8" font-family="Arial Narrow,Arial,sans-serif" font-size="76" font-weight="800">${escapeHtml(name.toUpperCase())}</text>
         ${svgTextLines(value(hero.thesis), 54, 222, 580, 31, 42)}
-        <g transform="translate(700 150)"><text fill="#928a7e" font-family="monospace" font-size="12" letter-spacing="1">SHARED-WINDOW AGENT MIX</text>
+        ${claude && codex ? `<g transform="translate(700 150)"><text fill="#928a7e" font-family="monospace" font-size="12" letter-spacing="1">SHARED-WINDOW AGENT MIX</text>
           <rect y="30" width="446" height="70" fill="#f4f0e8"/><rect x="${446 * clamp(number(claude?.share), 0, 100) / 100}" y="30" width="${446 * clamp(number(codex?.share), 0, 100) / 100}" height="70" fill="#ff4d00"/>
           <text x="18" y="75" fill="#0a0a09" font-family="Arial,sans-serif" font-size="21" font-weight="700">CLAUDE ${escapeHtml(formatPercent(claude?.share))}</text><text x="428" y="75" fill="#0a0a09" text-anchor="end" font-family="Arial,sans-serif" font-size="21" font-weight="700">CODEX ${escapeHtml(formatPercent(codex?.share))}</text>
           <text y="126" fill="#b8b0a3" font-family="monospace" font-size="13">${escapeHtml(formatNumber(mix.total_sessions))} retained records / ${escapeHtml(formatNumber(mix.calendar_days))} shared days · ${escapeHtml(formatDecimal(number(mix.total_sessions) / number(mix.calendar_days)))} / day</text>
           <text y="150" fill="#928a7e" font-family="monospace" font-size="10">ACTIVITY DENSITY, NOT QUALITY OR TIME SPENT</text>
-        </g>
+        </g>` : shareMixUnavailable(coverage)}
         ${shareSignal(54, 438, "AGENT PRACTICE", role.summary)}${shareSignal(432, 438, "INDUSTRY", value(industry.label))}${shareSignal(810, 438, "STRONGEST FIT", value(fit.label))}
         <line x1="54" y1="592" x2="1146" y2="592" stroke="#38342d"/><text x="54" y="616" fill="#928a7e" font-family="monospace" font-size="11">Career context + observed agent work</text><text x="1146" y="616" fill="${escapeAttr(presentation.accentColor)}" text-anchor="end" font-family="monospace" font-size="11">${escapeHtml(presentation.shareFooter)}</text>
       </svg>
     </div>
     ${sourceMarkers([...list(hero.evidence_ids), ...list(role.evidence_ids), ...list(industry.evidence_ids), ...list(fit.evidence_ids)], evidence)}
   </section>`;
+}
+
+// The share card's mix panel when there is no shared-window split: either a
+// single-tool history or two tools whose dates never overlap.
+function shareMixUnavailable(coverage) {
+  const single = singleMixSource(coverage);
+  if (single) {
+    const window = singleSourceWindow(single, coverage);
+    return `<g transform="translate(700 150)"><text fill="#928a7e" font-family="monospace" font-size="12" letter-spacing="1">AGENT HISTORY</text>
+          <rect y="30" width="446" height="70" fill="#f4f0e8"/><text x="18" y="75" fill="#0a0a09" font-family="Arial,sans-serif" font-size="21" font-weight="700">${escapeHtml(sourceLabel(single).toUpperCase())} ONLY</text>
+          <text y="126" fill="#b8b0a3" font-family="monospace" font-size="13">${escapeHtml(formatNumber(window.sessions))} retained records · single-tool history</text>
+          <text y="150" fill="#928a7e" font-family="monospace" font-size="10">A CLAUDE / CODEX SPLIT NEEDS BOTH TOOLS</text>
+        </g>`;
+  }
+  return `<g transform="translate(700 150)"><text fill="#928a7e" font-family="monospace" font-size="12" letter-spacing="1">SHARED-WINDOW AGENT MIX</text>
+          <rect y="30" width="446" height="70" fill="none" stroke="#38342d"/><text x="18" y="75" fill="#b8b0a3" font-family="Arial,sans-serif" font-size="21" font-weight="700">NOT CALCULATED</text>
+          <text y="126" fill="#b8b0a3" font-family="monospace" font-size="13">No shared Claude / Codex window</text>
+          <text y="150" fill="#928a7e" font-family="monospace" font-size="10">A SPLIT NEEDS BOTH TOOLS OVER THE SAME DATES</text>
+        </g>`;
 }
 
 function shareSignal(x, y, labelText, summary) {

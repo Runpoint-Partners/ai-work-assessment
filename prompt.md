@@ -231,7 +231,7 @@ Each arc gets exactly one value on each axis:
 - `work_context`: `client`, `employer`, `personal`, `open-source`, or `unclear`
 - `confidence`: `high`, `medium`, or `low`
 
-Use `employer` for work at a company the person works for, including a company or business they own, co-own, or run. Use `client` for work done for an outside organization. Set `work_context: personal` only when the evidence shows the person chose the problem for themselves, outside any business. A new repository or a greenfield system alone does not establish it. Use `open-source` for public projects maintained with others. Missing or ambiguous evidence is `unclear`.
+Use `employer` for work at a company the person works for, including a company or business they own, co-own, or run. Use `client` for work done for an outside organization. Set `work_context: personal` only when the evidence shows the person chose the problem for themselves, outside any business. A new repository or a greenfield system alone does not establish it. Use `open-source` for public projects maintained with others, when the person isn't doing the work for an employer or client; paid open-source work is `employer` or `client`. Missing or ambiguous evidence is `unclear`.
 
 Set `reviewer_governor` only when repeated evidence shows review, approval, standards, or quality control beyond the person's own implementation.
 
@@ -381,10 +381,11 @@ Additional visible rules:
   describes the setup, not skill. Do not rank a customized setup above a
   stock one in visible copy.
 - Set `profile_view.side_projects` to `null` unless at least one work arc has
-  `work_context: personal`. When a personal arc exists, write one claim about
-  what that work shows, such as finishing, care for the user-facing result, or
-  taking it to live use. Cite a `work-arc` evidence record whose `arc_ids`
-  include a personal arc. Never name a project, product, repository, or URL.
+  `work_context: personal` or `open-source`. When one exists, write one claim
+  about what that self-chosen work shows, such as finishing, care for the
+  user-facing result, taking it to live use, or maintaining it with others.
+  Cite a `work-arc` evidence record whose `arc_ids` include a personal or
+  open-source arc. Never name a project, product, repository, or URL.
 - Cohort metrics, percentiles, distribution curves, and comparison sample size do not belong in this JSON. The server adds them after submission.
 
 ## 8. Produce profile schema 10 JSON
@@ -780,7 +781,7 @@ The fixed renderer can show up to four hiring-relevant operating ratios. The mod
 
 The page must omit an unsupported ratio. It must not substitute a qualitative score, badge, or invented denominator.
 
-When no work arc is personal, use `"side_projects": null`. Do not omit the key or send `{}`.
+When no work arc is personal or open-source, use `"side_projects": null`. Do not omit the key or send `{}`.
 
 Allowed `source_field` roots for visible agent-practice statistics are:
 
@@ -831,7 +832,7 @@ Check every item:
 - [ ] `work_mix` coding, other, and unclassified sessions add up to the interactive sessions, sessions without tool metadata are unclassified, and `other_kinds` adds up to the other sessions.
 - [ ] `reusable_asset_coverage.sessions_scanned` equals `coding_sessions + other_sessions`, and `sessions_using_assets` does not exceed it.
 - [ ] Each `reusable_assets` row is one distinct asset someone chose to add: written, shared by the team, installed, or connected. Built-ins bundled with the harness or app are absent, and always-on hooks do not count toward `sessions_using_assets`.
-- [ ] `profile_view.side_projects` is `null` when no arc is personal. Otherwise it cites a personal arc's work-arc record and names no project, product, repository, or URL.
+- [ ] `profile_view.side_projects` is `null` when no arc is personal or open-source. Otherwise it cites one of those arcs' work-arc records and names no project, product, repository, or URL.
 - [ ] Every operating ratio has a source-compatible numerator and denominator. The model did not calculate or write the displayed percentage.
 - [ ] No visible section lists generic tools, badge cards, employers, or resume chronology.
 - [ ] No visible claim appears twice or as a close paraphrase.
