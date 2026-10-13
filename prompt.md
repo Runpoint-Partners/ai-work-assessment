@@ -164,6 +164,20 @@ Source code is any file that changes how software runs or is built: application 
 
 A reusable asset is a skill, command, MCP server or connector, hook, automation, agent template, or evaluation harness that someone chose to add to this person's setup: one they wrote, one their team shares, a plugin or skill they installed from a marketplace, or a connector or MCP server they connected. Anything present for every user without a choice is a built-in and never counts: the harness's own tools and subagent types, its browser, preview, pull-request, and session tools, and the skills and extensions bundled with the app. Invoking a named skill, command, or MCP server that is not a built-in is enough evidence; do not require proof of who installed it. One asset reached by different routes, such as a slash command and a skill call, is one asset. A session uses an asset only when the asset was invoked in that session, such as a skill or command called, a tool from that MCP server called, or an agent started from that template. A hook that runs automatically in every session does not make a session count.
 
+Find assets with these metadata patterns, not from memory of what a tool might be:
+
+- Claude Code and Cowork: a tool call named `mcp__<server>__<tool>` calls MCP server `<server>`. A `Skill` tool call names the skill in its `skill` input. A slash command appears in a user record as `<command-name>/name</command-name>`. An `Agent` or `Task` call names its template in `subagent_type`.
+- Codex: tool calls are `function_call` or `custom_tool_call` records with a `name`. A name of the form `mcp__<server>__<tool>`, or an `mcp_tool_call` event, is an MCP call. A skill is used when the session loads that skill's `SKILL.md` or the request names it with `$name`.
+
+Then classify each server, skill, command, or template:
+
+- A server whose name is an opaque ID, such as a UUID, is a connector the person connected to their account. It counts even though the name says nothing; label it by what its tools do.
+- A server or skill that comes from a plugin, such as a server named `plugin_<plugin>_<server>`, was installed and counts.
+- The app's own pieces are built-ins: servers whose names begin with `Claude_`, `ccd_`, or `computer-use`, the `claude-in-chrome` browser server, and the terminal, preview, and visualization servers the desktop app ships; built-in subagent types such as `general-purpose`, `Explore`, and `Plan`; built-in slash commands such as `/compact`, `/clear`, `/model`, and `/config`; and the harness's own functions such as `Bash`, `Read`, `Edit`, `exec`, and `apply_patch`.
+- Anything else invoked by name counts.
+
+A subagent's records can sit in a separate file, such as a `subagents/` folder under the session, or be marked `isSidechain`. Count its file writes and asset calls toward the session that launched it, and do not count it as a separate interactive session.
+
 Choose `other_kind` from the visible requested outcome, not from tool names. When a session had several outcomes, choose the one that took most of the session:
 
 - `research`: finding out how something works or what is true, such as reading documentation, comparing options, or investigating a bug without changing code;

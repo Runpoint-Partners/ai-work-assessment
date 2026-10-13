@@ -53,7 +53,13 @@ reported asset use in 84% of sessions, while the other excluded them and
 reported 54% for the same history. The second round split again, 47% vs 11%:
 one model counted installed plugins and connected services, the other demanded
 proof of who installed each asset and kept only five skills. The "chose to
-add" boundary and the evidence rule above settle both cases.
+add" boundary and the evidence rule above settle both cases. A third round
+still split (48% vs 10%) because connected services appear in Claude Code
+metadata as `mcp__<uuid>__<tool>`, which one model couldn't place. The prompt
+now gives the metadata patterns for MCP, skill, command, and template calls in
+each harness, the prefixes of the app's own servers, and the rule that an
+opaque-ID server is a connected service. Subagent writes count toward the
+session that launched them.
 
 The renderer derives the visible setup footprint. The model writes none of it:
 
