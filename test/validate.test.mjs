@@ -105,6 +105,85 @@ test("keeps accepting schema-v9 profiles under their original rules", () => {
   assert.ok(!("work_mix" in profile.activity_analysis) && !("side_projects" in profile.profile_view));
 });
 
+// A person who never used Codex: the harness is gone everywhere, and the
+// interactive totals shrink to the remaining window.
+function claudeOnly(profile) {
+  const coverage = profile.activity_analysis.coverage;
+  const dropped = coverage.source_windows.filter((item) => item.source === "codex").reduce((sum, item) => sum + item.sessions, 0);
+  coverage.source_windows = coverage.source_windows.filter((item) => item.source !== "codex");
+  coverage.shared_window_sessions = [];
+  coverage.interactive_sessions -= dropped;
+  profile.profile_view.agent_footprint.normalized_mix = null;
+  profile.agent_practice.tool_call_coverage = profile.agent_practice.tool_call_coverage.filter((item) => item.source !== "codex");
+  for (const arc of profile.work_arcs) arc.sources = arc.sources.filter((source) => source !== "codex").concat(arc.sources.includes("claude") ? [] : ["claude"]);
+  if (profile.activity_analysis.work_mix) {
+    profile.activity_analysis.work_mix.interactive_sessions -= dropped;
+    profile.activity_analysis.work_mix.unclassified_sessions -= dropped;
+  }
+  return profile;
+}
+
+for (const [label, path] of [["schema-v10", CURRENT_FIXTURE], ["schema-v9", V9_FIXTURE]]) {
+  test(`accepts a ${label} profile from one tool only`, () => {
+    const profile = claudeOnly(JSON.parse(readFileSync(path, "utf8")));
+    assert.doesNotThrow(() => validateRawProfileV9(profile));
+    sanitizeProfile(profile);
+    assert.doesNotThrow(() => validateProfileV9(profile));
+  });
+}
+
+test("rejects a dropped tool window when that tool still appears elsewhere", () => {
+  const profile = claudeOnly(JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8")));
+  profile.work_arcs[0].sources = ["codex"];
+  validateRawProfileV9(profile);
+  sanitizeProfile(profile);
+  assert.throws(() => validateProfileV9(profile), (error) => error instanceof ProfileError && error.code === "PROFILE_V9_MIX_WINDOW_INVALID");
+});
+
+test("rejects one asset active in more sessions than used any asset", () => {
+  const profile = JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8"));
+  profile.agent_practice.reusable_assets[0].active_sessions = 5000;
+  validateRawProfileV9(profile);
+  sanitizeProfile(profile);
+  assert.throws(() => validateProfileV9(profile), (error) => error instanceof ProfileError && error.code === "PROFILE_V10_ASSET_COVERAGE_INVALID");
+});
+
+test("keeps a large setup whole instead of truncating it at 40 assets", () => {
+  const profile = JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8"));
+  profile.agent_practice.reusable_assets = Array.from({ length: 103 }, (_, index) => ({
+    tag: `skill-${index}`, label: `Skill ${index}`, kind: "skill", relationship: "used",
+    active_sessions: 1, observed_uses: 1, sources: ["claude"], evidence: "Invoked in a session.",
+  }));
+  validateRawProfileV9(profile);
+  sanitizeProfile(profile);
+  assert.doesNotThrow(() => validateProfileV9(profile));
+  assert.equal(profile.agent_practice.reusable_assets.length, 103);
+  profile.agent_practice.reusable_assets = Array.from({ length: 201 }, () => profile.agent_practice.reusable_assets[0]);
+  profile.schema_version = 10;
+  assert.throws(() => validateRawProfileV9(profile), (error) => error instanceof ProfileError && error.code === "PROFILE_V10_ROW_LIMIT_EXCEEDED");
+});
+
+test("rejects an unlisted tool category by name under schema v10", () => {
+  const profile = JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8"));
+  profile.agent_practice.tool_categories.unshift({ ...profile.agent_practice.tool_categories[0], tag: "skills-plugins" });
+  assert.throws(() => validateRawProfileV9(profile), (error) => error instanceof ProfileError && error.code === "PROFILE_V10_RAW_TYPE_INVALID" && /tool_categories\[0\]\.tag/.test(error.message));
+});
+
+test("a schema-v9 statistic follows its row past a dropped tool category", () => {
+  const profile = JSON.parse(readFileSync(V9_FIXTURE, "utf8"));
+  const kept = profile.agent_practice.tool_categories.findIndex((item) => item.tag === "subagents");
+  const row = profile.agent_practice.tool_categories[kept];
+  profile.agent_practice.tool_categories = [{ ...row, tag: "unsupported-new-category" }, row];
+  profile.profile_view.agent_practice.statistics = [{
+    tag: "delegated-sessions", label: "Sessions with delegated subagents", value: row.active_sessions,
+    source_field: "/agent_practice/tool_categories/1/active_sessions", evidence_ids: profile.profile_view.agent_practice.role.evidence_ids,
+  }];
+  validateRawProfileV9(profile);
+  sanitizeProfile(profile);
+  assert.equal(profile.profile_view.agent_practice.statistics[0].source_field, "/agent_practice/tool_categories/0/active_sessions");
+  assert.doesNotThrow(() => validateProfileV9(profile));
+});
+
 test("rejects coding and other-work sessions without tool metadata", () => {
   const profile = JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8"));
   Object.assign(profile.activity_analysis.work_mix, { coding_sessions: 570, other_sessions: 0, unclassified_sessions: 0, other_kinds: [] });

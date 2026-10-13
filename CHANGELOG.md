@@ -12,7 +12,7 @@ The generated profile records both `prompt_version` and `schema_version`. Those 
 
 | Assessment | Profile schema | Released | Status | What changed |
 | --- | --- | --- | --- | --- |
-| v9 | v10 | Unreleased | Current | Added a coding and other work view counted from session tool records, a setup footprint from reusable skills, MCPs, hooks, and other assets, a work context on each work arc, and a side-projects claim that never names a project. Sessions without tool records stay unclassified. |
+| v9 | v10 | Unreleased | Current | Added a coding and other work view counted from session tool records, a setup footprint from reusable skills, MCPs, hooks, and other assets, a work context on each work arc, and a side-projects claim from personal or open-source work that never names a project. Sessions without tool records stay unclassified. A profile from only Claude Code or only Codex now validates. |
 | v8 | v9 | August 2, 2026 | Compatible | Replaced the dense badge map with a concise matching profile. Added source-backed industry and subject expertise, normalized Claude and Codex activity, deterministic agent-operating ratios, fixed rendering, strict privacy fields, and anti-repetition rules. |
 | v7 | v8 | July 26, 2026 | Compatible | Added the optional multi-environment workflow. The report remains readable and can be updated to the current matching format. |
 | v6 | v8 | July 21, 2026 | Compatible | Introduced the complete fourteen-badge evidence model. The report remains readable and can be updated to the current matching format. |
@@ -24,7 +24,7 @@ Compatible reports remain readable under their original rules. Run Assessment v9
 
 | Helper release | Released | Change |
 | --- | --- | --- |
-| v9.0.0 | Unreleased | Added schema-v10 validation and rendering, vendored the Assessment v9 prompt, contract, and sample, and added the coding mix and setup footprint to the `validate` report. Multi-environment bundles carry the new per-session fields inside `observations`; the bundle schema is unchanged. |
+| v9.0.0 | Unreleased | Added schema-v10 validation and rendering, vendored the Assessment v9 prompt, contract, and sample, and added the coding mix, setup footprint, and side projects to the `validate` report. Profiles from only Claude Code or only Codex now validate, under schema-v9 rules as well as v10, when the missing tool is absent everywhere; `validate` names the one tool. Schema-v10 validation rejects an unlisted tool category, an invalid asset row, or a list over its row limit by name instead of dropping rows, and keeps up to 200 reusable assets (was 40). A statistic now follows its row when an earlier tool-category row is dropped, which also fixes schema-v9 profiles. Multi-environment bundles carry the new per-session fields inside `observations`; the bundle schema is unchanged. |
 | v8.0.0 | August 2, 2026 | Added schema-v9 validation and fixed rendering, vendored the current prompt and sample, and added a cross-repository release check. |
 | v7.0.2 | July 30, 2026 | Clarified the version contract and corrected the Assessment v7 instructions. |
 | v7.0.1 | July 26, 2026 | Fixed command-line execution through package shims. |

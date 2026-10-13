@@ -66,12 +66,34 @@ The prompt now separates interactive from automated sessions by `entrypoint`
 (Claude Code) and `originator`/`source` (Codex), and the collector leaves
 automated sessions out of bundles.
 
+Sam's Oct 13 run, checked against his real session files, corrected the
+metadata recipe. Cowork's `local-agent` entrypoint is interactive and `sdk-cli`
+is automated. The Codex desktop originator is `Codex Desktop`, and
+`session_meta.thread_source` decides first when present: `automation` and
+`guardian_review` are automated, `subagent` is a worker, and
+`agent_created_thread` and `realtime_voice` are interactive. Older Codex
+rollouts without `session_meta` are interactive when they hold user messages
+over more than one turn. Codex MCP calls also appear as a `namespace:
+"mcp__<server>"` function call and as `tools.mcp__codex_apps__<connector>_<tool>()`
+inside `exec` code. Codex puts every skill's `SKILL.md` path in context each
+turn, so only a read of that file or a `$name` request counts as use. Claude.ai
+account connectors (`mcp__claude_ai_<Service>__<tool>`) count; Cowork's own
+servers, Codex's `cua_repl` and `node_repl`, and plugins from the
+`openai-bundled` and `openai-primary-runtime` marketplaces are built-ins. An
+asset is `created` when its definition lives in the person's own repository or
+user configuration and they wrote it, `adapted` when they edited a copy, and
+`used` otherwise.
+
 The renderer derives the visible setup footprint. The model writes none of it:
 
 - distinct assets by kind, and how many the person created or adapted;
 - the share of sessions that used any asset (`sessions_using_assets / sessions_scanned`);
 - a placement band from the distinct-asset count: `stock` (0), `light` (1 to 3),
   `customized` (4 to 10), `extensive` (11 or more).
+
+When `sessions_scanned` is 0, no tool calls were read, so the page shows
+"Setup not measured" instead of a band. The renderer applies the cut points,
+so they can change without anyone re-running the assessment.
 
 The band describes the setup, not skill. Visible copy must not rank a
 customized setup above a stock one. The Oct 6 call made the point that
@@ -83,6 +105,8 @@ Validation:
 - `sessions_scanned` equals `work_mix.coding_sessions + work_mix.other_sessions`, the
   only interactive sessions whose tool calls were read;
 - every asset with `active_sessions > 0` implies `sessions_using_assets > 0`;
+- no asset's `active_sessions` exceeds `sessions_using_assets`, since every
+  session that ran an asset used assets;
 - `/agent_practice/reusable_asset_coverage/` joins the allow-listed statistic roots.
 
 ## 2. Coding and other work (deterministic counts, model kinds)
@@ -122,7 +146,39 @@ Validation:
   `agent_practice.tool_call_coverage[].sessions_with_tool_metadata`, because a session
   without tool metadata is always unclassified;
 - the `other_kinds[].sessions` values sum to `other_sessions`, with each tag at most once;
-- `interactive_sessions` equals `activity_analysis.coverage.interactive_sessions`.
+- `interactive_sessions` equals `activity_analysis.coverage.interactive_sessions`;
+- each `tool_call_coverage` row has `sessions_with_tool_metadata <= sessions_scanned`,
+  and their sum does not exceed the recorded interactive sessions plus scheduled runs.
+
+Both validators run the same checks, so a profile that passes on the person's
+machine passes at upload. Schema 10 rejects at the raw stage, by name, anything
+the server's sanitizer would otherwise coerce or drop and then fail on later:
+
+- unknown keys in `work_mix`, its `other_kinds` rows, and `reusable_asset_coverage`;
+- empty strings in either ledger's `limitations`;
+- a work arc with a missing id or label, or an invalid `delivery_state`,
+  `system_context`, `primary_surface`, `change_type`, `responsibility`, or `confidence`;
+- a `tool_call_coverage` row from an unknown source, or with non-integer counts;
+- a source window without a valid `retention`;
+- a missing or non-integer `activity_analysis.coverage.interactive_sessions`;
+- a `tool_categories` tag outside the server's fixed list (`shell`, `filesystem`,
+  `code-edit`, `browser-computer-use`, `search-research`, `version-control`,
+  `deploy-infra`, `data-database`, `mcp-connectors`, `subagents`), or a row without
+  a label and intensity;
+- a `reusable_assets` row without a tag or label, or with an unknown `kind` or
+  `relationship`;
+- a list over the row limit the sanitizer applies: 10 tool categories, 200
+  reusable assets, 12 tool-coverage rows and source windows, 7 other-work kinds,
+  20 work arcs, and 120 evidence records. The page counts from these rows, so
+  the upload must never truncate them. The asset limit was 40, which cut a real
+  103-asset setup to 40 on upload; it is now 200.
+
+Statistic pointers into `tool_call_coverage`, `tool_categories`, and
+`reusable_assets` name rows by index. The sanitizer now rewrites each pointer to
+its row's new index when earlier rows are dropped. Before, a dropped row shifted
+the rest, and a pointer resolved to a different row and failed the upload. This
+predates schema 10. Schema 9 keeps its tolerance for a statistic whose own row
+is dropped and removes that statistic; schema 10 rejects it with the reason.
 
 The renderer adds a "Coding and other work" bar to the agent footprint. It
 shows coding and other work as shares of the classified sessions, other work
@@ -139,26 +195,29 @@ Every work arc gets one more axis:
 `employer` includes a business the person owns, co-owns, or runs. `client` is
 work for an outside organization. `personal` requires evidence that the person
 chose the problem for themselves, outside any business.
-A greenfield repository alone does not count. Missing or ambiguous evidence is
-`unclear`.
+A greenfield repository alone does not count. `open-source` is a public project
+maintained with others that the person isn't doing for an employer or client;
+paid open-source work is `employer` or `client`. Missing or ambiguous evidence
+is `unclear`.
 
-One visible claim, which is null when no arc is `personal`:
+Personal and open-source arcs are both self-chosen work (Sam, Oct 13). One
+visible claim, which is null when no arc is `personal` or `open-source`:
 
 ```text
 profile_view
   side_projects               null | { summary, evidence_ids[] }   summary 30 words
 ```
 
-The renderer shows the personal-arc count and their delivery states next to
-the summary. The summary describes what the work shows, such as care for
+The renderer shows the personal and open-source arc counts and how many are
+in real use next to the summary. The summary describes what the work shows, such as care for
 the user-facing result, finishing, or taking a project to live use. It must not
 name a project, repository, product, or URL. The schema 9 privacy boundary is
 unchanged.
 
 Validation:
 
-- `side_projects` is null exactly when no arc has `work_context: personal`;
-- `side_projects.evidence_ids` must include a `work-arc` record for a personal arc;
+- `side_projects` is null exactly when no arc has `work_context` `personal` or `open-source`;
+- `side_projects.evidence_ids` must include a `work-arc` record for one of those arcs;
 - the word budget and repeated-copy checks cover it like any other claim.
 
 Links to personal projects stay out of the payload. People add them on the
@@ -191,10 +250,14 @@ These are site features, not contract fields. They ship separately:
 - Schema 10 requires every field above. Use empty ledgers or `null` where
   the evidence is missing, never zero-filled placeholders. The rule matches
   the schema 9 normalized mix.
-- A person who used only one of Claude and Codex has no shared window. They
+- A person who used only one of Claude and Codex has no shared window. The
+  page says which tool the history came from and that a split needs both,
+  rather than asking for more history. They
   use the same null mix and empty ledger as non-overlapping windows. Both
-  validators accept that only when the missing harness has no source window
-  and no scanned sessions anywhere in the profile. Before this fix, schema 9
+  validators accept that only when the missing harness is absent everywhere:
+  no source window, no `tool_call_coverage` row, no `tool_categories`,
+  `reusable_assets`, or `work_arcs` source, and no `model_usage` row. The
+  remaining source windows must also hold every interactive session. Before this fix, schema 9
   rejected every single-harness profile. The Oct 13 multi-environment test
   run found it.
 - Multi-environment bundles carry each session's assets as
@@ -227,5 +290,7 @@ These are site features, not contract fields. They ship separately:
 ## Open questions
 
 - Band thresholds: are 0, 1 to 3, 4 to 10, and 11+ distinct assets the right cut points?
-- Should the side-projects summary appear when only `open-source` arcs exist,
-  or only for `personal`?
+  They ship as is. The renderer applies them, so they can move after the first
+  re-runs show where members land.
+- Settled Oct 13: the side-projects summary appears for `open-source` arcs as
+  well as `personal` ones.

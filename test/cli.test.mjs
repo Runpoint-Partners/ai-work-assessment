@@ -143,6 +143,25 @@ test("schema-v9 profiles still validate and render", () => {
   assert.doesNotMatch(html, /Coding and other work|<h3>Side projects<\/h3>/);
 });
 
+test("validate names the one tool behind a single-tool profile", () => {
+  const profile = JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8"));
+  const coverage = profile.activity_analysis.coverage;
+  coverage.source_windows = coverage.source_windows.filter((item) => item.source !== "codex");
+  coverage.shared_window_sessions = [];
+  coverage.interactive_sessions = 196;
+  Object.assign(profile.activity_analysis.work_mix, { interactive_sessions: 196, unclassified_sessions: 8 });
+  profile.profile_view.agent_footprint.normalized_mix = null;
+  for (const arc of profile.work_arcs) arc.sources = ["claude"];
+  const path = join(mkdtempSync(join(tmpdir(), "awa-single-")), "profile.json");
+  writeFileSync(path, JSON.stringify(profile));
+  const stdout = run(["validate", path]);
+  assert.match(stdout, /shared-window mix\s+unavailable \(claude only\)/);
+  assert.match(stdout, /Valid: the profile satisfies its schema-v10 rules\./);
+  const outPath = join(dirname(path), "profile.html");
+  run(["render", path, "--out", outPath]);
+  assert.match(readFileSync(outPath, "utf8"), /<h3>Claude Code only<\/h3>/);
+});
+
 test("validate prints a field-level report", () => {
   const stdout = run(["validate", FIXTURE]);
   assert.match(stdout, /name\s+Riley Okafor/);
@@ -224,7 +243,12 @@ test("multi-environment commands validate and consolidate exact duplicates", () 
       project_label: "Product application",
       evidence_quality: "full-transcript",
       event_count: 20,
-      observations: { outcomes: ["Verified a production change"] },
+      observations: {
+        outcomes: ["Verified a production change"],
+        code_change: true,
+        assets_used: true,
+        assets: [{ kind: "skill", label: "Code review skill", relationship: "created" }],
+      },
       limitations: [],
     }],
     collection_limits: [],
@@ -242,6 +266,11 @@ test("multi-environment commands validate and consolidate exact duplicates", () 
   assert.equal(result.environment_count, 2);
   assert.equal(result.input_sessions, 2);
   assert.equal(result.unique_sessions, 1);
+  // Schema 10's per-session fields ride inside observations, untouched.
+  const observations = result.session_evidence[0].observations;
+  assert.equal(observations.code_change, true);
+  assert.equal(observations.assets_used, true);
+  assert.deepEqual(observations.assets, [{ kind: "skill", label: "Code review skill", relationship: "created" }]);
 });
 
 test("environment-id is stable inside one private config home", () => {
