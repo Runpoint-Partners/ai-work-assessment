@@ -66,6 +66,24 @@ The prompt now separates interactive from automated sessions by `entrypoint`
 (Claude Code) and `originator`/`source` (Codex), and the collector leaves
 automated sessions out of bundles.
 
+Sam's Oct 13 run, checked against his real session files, corrected the
+metadata recipe. Cowork's `local-agent` entrypoint is interactive and `sdk-cli`
+is automated. The Codex desktop originator is `Codex Desktop`, and
+`session_meta.thread_source` decides first when present: `automation` and
+`guardian_review` are automated, `subagent` is a worker, and
+`agent_created_thread` and `realtime_voice` are interactive. Older Codex
+rollouts without `session_meta` are interactive when they hold user messages
+over more than one turn. Codex MCP calls also appear as a `namespace:
+"mcp__<server>"` function call and as `tools.mcp__codex_apps__<connector>_<tool>()`
+inside `exec` code. Codex puts every skill's `SKILL.md` path in context each
+turn, so only a read of that file or a `$name` request counts as use. Claude.ai
+account connectors (`mcp__claude_ai_<Service>__<tool>`) count; Cowork's own
+servers, Codex's `cua_repl` and `node_repl`, and plugins from the
+`openai-bundled` and `openai-primary-runtime` marketplaces are built-ins. An
+asset is `created` when its definition lives in the person's own repository or
+user configuration and they wrote it, `adapted` when they edited a copy, and
+`used` otherwise.
+
 The renderer derives the visible setup footprint. The model writes none of it:
 
 - distinct assets by kind, and how many the person created or adapted;
@@ -142,7 +160,25 @@ the server's sanitizer would otherwise coerce or drop and then fail on later:
   `system_context`, `primary_surface`, `change_type`, `responsibility`, or `confidence`;
 - a `tool_call_coverage` row from an unknown source, or with non-integer counts;
 - a source window without a valid `retention`;
-- a missing or non-integer `activity_analysis.coverage.interactive_sessions`.
+- a missing or non-integer `activity_analysis.coverage.interactive_sessions`;
+- a `tool_categories` tag outside the server's fixed list (`shell`, `filesystem`,
+  `code-edit`, `browser-computer-use`, `search-research`, `version-control`,
+  `deploy-infra`, `data-database`, `mcp-connectors`, `subagents`), or a row without
+  a label and intensity;
+- a `reusable_assets` row without a tag or label, or with an unknown `kind` or
+  `relationship`;
+- a list over the row limit the sanitizer applies: 10 tool categories, 200
+  reusable assets, 12 tool-coverage rows and source windows, 7 other-work kinds,
+  20 work arcs, and 120 evidence records. The page counts from these rows, so
+  the upload must never truncate them. The asset limit was 40, which cut a real
+  103-asset setup to 40 on upload; it is now 200.
+
+Statistic pointers into `tool_call_coverage`, `tool_categories`, and
+`reusable_assets` name rows by index. The sanitizer now rewrites each pointer to
+its row's new index when earlier rows are dropped. Before, a dropped row shifted
+the rest, and a pointer resolved to a different row and failed the upload. This
+predates schema 10. Schema 9 keeps its tolerance for a statistic whose own row
+is dropped and removes that statistic; schema 10 rejects it with the reason.
 
 The renderer adds a "Coding and other work" bar to the agent footprint. It
 shows coding and other work as shares of the classified sessions, other work

@@ -156,8 +156,9 @@ Create a separate metadata-only agent-operations ledger. Store only source harne
 
 Tell interactive sessions from automated ones by the session's own metadata, not by its content:
 
-- Claude Code and Cowork: a session is interactive when its `entrypoint` is an app or terminal entry, such as `claude-desktop`, `cli`, or an editor extension. An `sdk-*` entrypoint, such as `sdk-py` or `sdk-ts`, is a program driving the agent, such as an automated review, and counts as a scheduled run.
-- Codex: read `originator` and `source` in the first `session_meta` record. `codex-tui`, `codex_work_desktop`, and editor originators are interactive. `codex_exec` is a scripted run. An originator naming another agent, such as `Claude Code`, means that agent launched the session, and a `source` with a `subagent` key is a worker. Count all three as scheduled runs.
+- Claude Code and Cowork: a session is interactive when its `entrypoint` is an app or terminal entry, such as `claude-desktop`, `cli`, an editor extension, or `local-agent` (a Cowork session). An `sdk-*` entrypoint, such as `sdk-py`, `sdk-ts`, or `sdk-cli`, is a program driving the agent, such as an automated review, and counts as a scheduled run.
+- Codex: read the first `session_meta` record. When it has `thread_source`, that decides: `automation` is a scheduled automation run and counts as a scheduled run even when `originator` is `Codex Desktop` and `source` is `vscode`; `guardian_review` is a review the app ran and counts as a scheduled run; `subagent` is a worker, counted toward the session that launched it as described below; `agent_created_thread` and `realtime_voice` are interactive, because the person typed or spoke in them. Otherwise read `originator` and `source`. `Codex Desktop`, `codex-tui`, `codex_work_desktop`, and editor originators are interactive. `codex_exec` is a scripted run. An originator naming another agent, such as `Claude Code`, means that agent launched the session, and a `source` with a `subagent` key is a worker. Count all three as scheduled runs.
+- Older Codex rollout files have no `session_meta`; their first line holds only `id`, `timestamp`, `instructions`, and `git`. Treat one as interactive when it has user messages over more than one turn, and as a scheduled run otherwise.
 - When a session has no such field, treat it as interactive only if it shows the person typing requests over more than one turn.
 
 Scheduled runs never enter `work_mix`, `reusable_asset_coverage`, or `interactive_sessions`. When another agent routinely launches one harness, such as review runs started from Claude Code, describe that as delegation in agent practice rather than as interactive use.
@@ -175,14 +176,21 @@ A reusable asset is a skill, command, MCP server or connector, hook, automation,
 Find assets with these metadata patterns, not from memory of what a tool might be:
 
 - Claude Code and Cowork: a tool call named `mcp__<server>__<tool>` calls MCP server `<server>`. A `Skill` tool call names the skill in its `skill` input. A slash command appears in a user record as `<command-name>/name</command-name>`. An `Agent` or `Task` call names its template in `subagent_type`.
-- Codex: tool calls are `function_call` or `custom_tool_call` records with a `name`. A name of the form `mcp__<server>__<tool>`, or an `mcp_tool_call` event, is an MCP call. A skill is used when the session loads that skill's `SKILL.md` or the request names it with `$name`.
+- Codex: tool calls are `function_call` or `custom_tool_call` records with a `name`. An MCP call appears three ways: a name of the form `mcp__<server>__<tool>`; a `function_call` with `namespace: "mcp__<server>"` and a bare tool `name`; or an `mcp_tool_call` event. Code run through `exec` can also call `tools.mcp__codex_apps__<connector>_<tool>()`: `codex_apps` is the gateway, and `<connector>` is the connected service that counts. Codex lists every installed skill's `SKILL.md` path in context on each turn, so a path in context is not use. A skill is used only when a tool call reads that skill's `SKILL.md` or the person names it with `$name`.
 
 Then classify each server, skill, command, or template:
 
 - A server whose name is an opaque ID, such as a UUID, is a connector the person connected to their account. It counts even though the name says nothing; label it by what its tools do.
-- A server or skill that comes from a plugin, such as a server named `plugin_<plugin>_<server>`, was installed and counts.
-- The app's own pieces are built-ins: servers whose names begin with `Claude_`, `ccd_`, or `computer-use`, the `claude-in-chrome` browser server, and the terminal, preview, and visualization servers the desktop app ships; built-in subagent types such as `general-purpose`, `Explore`, and `Plan`; built-in slash commands such as `/compact`, `/clear`, `/model`, and `/config`; and the harness's own functions such as `Bash`, `Read`, `Edit`, `exec`, and `apply_patch`.
+- A server named `claude_ai_<Service>`, called as `mcp__claude_ai_<Service>__<tool>`, is a Claude.ai account connector the person connected. It counts; label it by the service.
+- A server or skill that comes from a plugin, such as a server named `plugin_<plugin>_<server>`, was installed and counts, unless the plugin comes from Codex's `openai-bundled` or `openai-primary-runtime` marketplace, which ship with the app.
+- The app's own pieces are built-ins: servers whose names begin with `Claude_`, `ccd_`, or `computer-use`, the `claude-in-chrome` browser server, and the terminal, preview, and visualization servers the desktop app ships; Cowork's own servers `workspace`, `mcp-registry`, `cowork`, `session_info`, `dispatch`, `Control_Chrome`, `Control_your_Mac`, `visualize`, and `filesystem`; Codex's `cua_repl` and `node_repl` and plugins from its `openai-bundled` and `openai-primary-runtime` marketplaces; built-in subagent types such as `general-purpose`, `Explore`, and `Plan`; built-in slash commands such as `/compact`, `/clear`, `/model`, and `/config`; and the harness's own functions such as `Bash`, `Read`, `Edit`, `exec`, and `apply_patch`.
 - Anything else invoked by name counts.
+
+Set each asset's `relationship` from where its definition lives:
+
+- `created`: its source is in the person's own repository or user configuration and they wrote it, such as a skill under `~/.claude/skills` or a command under `~/.claude/commands` that they authored, or the sessions show them writing its definition file;
+- `adapted`: a copied or installed asset whose definition they edited;
+- `used`: everything else, including marketplace installs and connected services.
 
 A subagent's records can sit in a separate file, such as a `subagents/` folder under the session, or be marked `isSidechain`. Count its file writes and asset calls toward the session that launched it, and do not count it as a separate interactive session.
 
@@ -782,6 +790,20 @@ The fixed renderer can show up to four hiring-relevant operating ratios. The mod
 The page must omit an unsupported ratio. It must not substitute a qualitative score, badge, or invented denominator.
 
 When no work arc is personal or open-source, use `"side_projects": null`. Do not omit the key or send `{}`.
+
+Fixed vocabularies and row limits. Both validators reject a value outside a
+list or a list over its limit, because the upload would otherwise drop rows
+and change the page's counts:
+
+- `agent_practice.tool_categories[].tag` and `activity_analysis.monthly[].tool_categories[].tag`:
+  `shell`, `filesystem`, `code-edit`, `browser-computer-use`, `search-research`,
+  `version-control`, `deploy-infra`, `data-database`, `mcp-connectors`, or `subagents`.
+  Fold any other activity into the closest of these. Skills and plugins are
+  reusable assets, not a tool category.
+- `agent_practice.tool_categories`: at most 10 rows, each with a label and an intensity.
+- `agent_practice.reusable_assets`: at most 200 rows, one per distinct asset.
+- `agent_practice.tool_call_coverage` and `activity_analysis.coverage.source_windows`: at most 12 rows each.
+- `work_arcs`: at most 20. `evidence_index`: at most 120.
 
 Allowed `source_field` roots for visible agent-practice statistics are:
 

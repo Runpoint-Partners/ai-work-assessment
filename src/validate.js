@@ -67,6 +67,23 @@ export const WORK_CONTEXTS = ["client", "employer", "personal", "open-source", "
 const SIDE_PROJECT_CONTEXTS = ["personal", "open-source"];
 const OTHER_WORK_KINDS = ["research", "writing", "planning", "data-analysis", "operations", "design", "other"];
 const SOURCE_WINDOW_RETENTION = ["full-available", "retention-limited", "unknown"];
+const TOOL_CATEGORY_INTENSITIES = ["habitual", "recurring", "situational"];
+const REUSABLE_ASSET_KINDS = ["skill", "command", "mcp", "hook", "automation", "agent-template", "eval"];
+const REUSABLE_ASSET_RELATIONSHIPS = ["used", "adapted", "created"];
+// Row caps the sanitizer applies. The page counts from these rows, so schema
+// 10 rejects a longer list instead of letting the sanitizer truncate it.
+export const PROFILE_ROW_CAPS = {
+  tool_call_coverage: 12,
+  tool_categories: 10,
+  reusable_assets: 200,
+  source_windows: 12,
+  work_arcs: 20,
+  evidence_index: 120,
+  other_kinds: OTHER_WORK_KINDS.length,
+};
+// Marks each sanitized agent_practice row with its original index, so
+// statistic pointers can follow a row when earlier rows are dropped.
+const ROW_INDEX = Symbol("original row index");
 // The work-arc fields the sanitizer requires. An arc with an invalid value is
 // dropped, so schema 10 rejects it up front instead of losing it silently.
 const WORK_ARC_ENUMS = {
@@ -304,6 +321,36 @@ function validateRawProfileV10(profile, view) {
     }
   });
 
+  for (const [path, rows, cap] of [
+    ["agent_practice.tool_call_coverage", profile.agent_practice?.tool_call_coverage, PROFILE_ROW_CAPS.tool_call_coverage],
+    ["agent_practice.tool_categories", profile.agent_practice?.tool_categories, PROFILE_ROW_CAPS.tool_categories],
+    ["agent_practice.reusable_assets", profile.agent_practice?.reusable_assets, PROFILE_ROW_CAPS.reusable_assets],
+    ["activity_analysis.coverage.source_windows", profile.activity_analysis?.coverage?.source_windows, PROFILE_ROW_CAPS.source_windows],
+    ["activity_analysis.work_mix.other_kinds", profile.activity_analysis?.work_mix?.other_kinds, PROFILE_ROW_CAPS.other_kinds],
+    ["work_arcs", profile.work_arcs, PROFILE_ROW_CAPS.work_arcs],
+    ["evidence_index", profile.evidence_index, PROFILE_ROW_CAPS.evidence_index],
+  ]) {
+    if (Array.isArray(rows) && rows.length > cap) {
+      throw new ProfileError(`${path} has ${rows.length} rows; the limit is ${cap}.`, 422, "PROFILE_V10_ROW_LIMIT_EXCEEDED");
+    }
+  }
+  // The sanitizer drops a tool category or asset row it can't keep, which
+  // would change the page's counts and shift statistic pointers.
+  (Array.isArray(profile.agent_practice?.tool_categories) ? profile.agent_practice.tool_categories : []).forEach((row, index) => {
+    if (!TOOL_CATEGORIES.includes(row?.tag)) {
+      throw new ProfileError(`agent_practice.tool_categories[${index}].tag must be one of ${TOOL_CATEGORIES.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    }
+    if (!String(row.label || "").trim() || !TOOL_CATEGORY_INTENSITIES.includes(row.intensity)) {
+      throw new ProfileError(`agent_practice.tool_categories[${index}] needs a label and an intensity of ${TOOL_CATEGORY_INTENSITIES.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    }
+  });
+  (Array.isArray(profile.agent_practice?.reusable_assets) ? profile.agent_practice.reusable_assets : []).forEach((row, index) => {
+    const path = `agent_practice.reusable_assets[${index}]`;
+    if (!isObject(row) || !(String(row.tag || "").trim() || String(row.label || "").trim())) throw new ProfileError(`${path} needs a tag or label.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    if (!REUSABLE_ASSET_KINDS.includes(row.kind)) throw new ProfileError(`${path}.kind must be one of ${REUSABLE_ASSET_KINDS.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    if (!REUSABLE_ASSET_RELATIONSHIPS.includes(row.relationship)) throw new ProfileError(`${path}.relationship must be one of ${REUSABLE_ASSET_RELATIONSHIPS.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+  });
+
   // The ledgers below are checked against these counts, so they must be real
   // integers. The sanitizer would otherwise coerce or drop them.
   const coverage = requireRawObject(profile.activity_analysis?.coverage, "activity_analysis.coverage");
@@ -508,7 +555,8 @@ export function sanitizeProfile(profile) {
     const permission = isObject(practice.permission_practice) ? practice.permission_practice : {};
     profile.agent_practice = {
       tool_call_coverage: (Array.isArray(practice.tool_call_coverage) ? practice.tool_call_coverage : [])
-        .map((item) => ({
+        .map((item, index) => ({
+          [ROW_INDEX]: index,
           source: allowed(item?.source, AGENT_SOURCES),
           from: clean(item?.from, 30),
           to: clean(item?.to, 30),
@@ -518,32 +566,34 @@ export function sanitizeProfile(profile) {
           limitations: cleanStrings(item?.limitations, 8, 300),
         }))
         .filter((item) => item.source)
-        .slice(0, 12),
+        .slice(0, PROFILE_ROW_CAPS.tool_call_coverage),
       tool_categories: (Array.isArray(practice.tool_categories) ? practice.tool_categories : [])
-        .map((item) => ({
+        .map((item, index) => ({
+          [ROW_INDEX]: index,
           tag: allowed(item?.tag, TOOL_CATEGORIES),
           label: clean(item?.label, 120),
-          intensity: allowed(item?.intensity, ["habitual", "recurring", "situational"]),
+          intensity: allowed(item?.intensity, TOOL_CATEGORY_INTENSITIES),
           active_sessions: nonNegativeInt(item?.active_sessions),
           observed_calls: nonNegativeInt(item?.observed_calls),
           sources: cleanEnumStrings(item?.sources, AGENT_SOURCES, 4),
           evidence: clean(item?.evidence, 500),
         }))
         .filter((item) => item.tag && item.label && item.intensity)
-        .slice(0, 10),
+        .slice(0, PROFILE_ROW_CAPS.tool_categories),
       reusable_assets: (Array.isArray(practice.reusable_assets) ? practice.reusable_assets : [])
-        .map((item) => ({
+        .map((item, index) => ({
+          [ROW_INDEX]: index,
           tag: clean(item?.tag, 60),
           label: clean(item?.label, 120),
-          kind: allowed(item?.kind, ["skill", "command", "mcp", "hook", "automation", "agent-template", "eval"]),
-          relationship: allowed(item?.relationship, ["used", "adapted", "created"]),
+          kind: allowed(item?.kind, REUSABLE_ASSET_KINDS),
+          relationship: allowed(item?.relationship, REUSABLE_ASSET_RELATIONSHIPS),
           active_sessions: nonNegativeInt(item?.active_sessions),
           observed_uses: nonNegativeInt(item?.observed_uses),
           sources: cleanEnumStrings(item?.sources, AGENT_SOURCES, 4),
           evidence: clean(item?.evidence, 500),
         }))
         .filter((item) => (item.tag || item.label) && item.kind && item.relationship)
-        .slice(0, 40),
+        .slice(0, PROFILE_ROW_CAPS.reusable_assets),
       ...(usesProfileV10(profile) ? {
         reusable_asset_coverage: {
           sessions_scanned: nonNegativeInt(practice.reusable_asset_coverage?.sessions_scanned),
@@ -587,6 +637,7 @@ export function sanitizeProfile(profile) {
         limitations: cleanStrings(permission.limitations, 12, 400),
       },
     };
+    remapStatisticPointers(profile, practice, removableStatisticSources, { strict: usesProfileV10(profile) });
   } else if ("agent_practice" in profile) {
     delete profile.agent_practice;
   }
@@ -617,7 +668,7 @@ export function sanitizeProfile(profile) {
             limitations: cleanStrings(item?.limitations, 8, 300),
           }))
           .filter((item) => item.source && item.from && item.to && item.retention)
-          .slice(0, 12),
+          .slice(0, PROFILE_ROW_CAPS.source_windows),
         shared_window_sessions: (Array.isArray(coverage.shared_window_sessions) ? coverage.shared_window_sessions : [])
           .map((item) => ({
             source: allowed(item?.source, PROFILE_MIX_SOURCES),
@@ -724,7 +775,7 @@ export function sanitizeProfile(profile) {
     evidence: clean(domain?.evidence, 500),
   }), (domain) => domain.tag || domain.label);
 
-  sanitizeArray(profile, "work_arcs", 20, (arc) => ({
+  sanitizeArray(profile, "work_arcs", PROFILE_ROW_CAPS.work_arcs, (arc) => ({
     id: clean(arc?.id, 60),
     label: clean(arc?.label, 160),
     from: clean(arc?.from, 30),
@@ -835,7 +886,7 @@ export function sanitizeProfile(profile) {
 
   sanitizeProfileView(profile, removableStatisticSources);
 
-  sanitizeArray(profile, "evidence_index", 120, (item) => ({
+  sanitizeArray(profile, "evidence_index", PROFILE_ROW_CAPS.evidence_index, (item) => ({
     id: clean(item?.id, 80),
     source: allowed(item?.source, PROFILE_EVIDENCE_SOURCES),
     kind: clean(item?.kind, 80),
@@ -1273,7 +1324,7 @@ function sanitizeWorkMix(value) {
     other_kinds: (Array.isArray(mix.other_kinds) ? mix.other_kinds : [])
       .map((item) => ({ tag: allowed(item?.tag, OTHER_WORK_KINDS), sessions: nonNegativeInt(item?.sessions) }))
       .filter((item) => item.tag)
-      .slice(0, OTHER_WORK_KINDS.length),
+      .slice(0, PROFILE_ROW_CAPS.other_kinds),
     limitations: cleanStrings(mix.limitations, 8, 300),
   };
 }
@@ -1613,6 +1664,59 @@ function validateAnchoredStatistics(profile, statistics, { allowGenericToolCateg
       throw new ProfileError("Agent-practice statistic values must equal their deterministic source fields.", 422, "PROFILE_V9_STATISTIC_VALUE_INVALID");
     }
   }
+}
+
+// Statistic pointers name agent_practice rows by index. When the sanitizer
+// drops a row, later rows shift, and a pointer would resolve to a different
+// row. Each pointer is rewritten to its row's new index. This predates schema
+// 10: schema 9 uploads with an unlisted tool-category tag failed the same way.
+// A statistic whose own row was dropped is rejected with the reason under
+// schema 10, which validates those rows up front. Schema 9 keeps its existing
+// tolerance and drops that statistic, as it drops a generic one.
+const STATISTIC_ROW_POINTER_RE = /^\/agent_practice\/(tool_call_coverage|tool_categories|reusable_assets)\/(\d+)(\/.*)?$/;
+
+function remapStatisticPointers(profile, original, removable, { strict = false } = {}) {
+  const kept = {};
+  for (const key of ["tool_call_coverage", "tool_categories", "reusable_assets"]) {
+    kept[key] = profile.agent_practice[key].map((row) => row[ROW_INDEX]);
+    for (const row of profile.agent_practice[key]) delete row[ROW_INDEX];
+  }
+  const remap = (pointer) => {
+    const match = String(pointer || "").match(STATISTIC_ROW_POINTER_RE);
+    if (!match) return { pointer };
+    const [, key, index, rest = ""] = match;
+    const next = kept[key].indexOf(Number(index));
+    return next < 0 ? { dropped: { key, index: Number(index) } } : { pointer: `/agent_practice/${key}/${next}${rest}` };
+  };
+  const removableBefore = new Set(removable);
+  removable.clear();
+  for (const pointer of removableBefore) removable.add(remap(pointer).pointer ?? pointer);
+
+  const practiceView = profile.profile_view?.agent_practice;
+  if (!isObject(practiceView) || !Array.isArray(practiceView.statistics)) return;
+  practiceView.statistics = practiceView.statistics.filter((item, position) => {
+    if (!isObject(item) || typeof item.source_field !== "string" || removableBefore.has(item.source_field)) return true;
+    const result = remap(item.source_field);
+    if (result.dropped) {
+      if (!strict) return false;
+      const { key, index } = result.dropped;
+      throw new ProfileError(
+        `profile_view.agent_practice.statistics[${position}].source_field points to agent_practice.${key}[${index}], which the upload can't keep: ${droppedRowReason(key, original?.[key], index)}`,
+        422,
+        "PROFILE_V9_STATISTIC_SOURCE_DROPPED",
+      );
+    }
+    item.source_field = result.pointer;
+    return true;
+  });
+}
+
+function droppedRowReason(key, rows, index) {
+  const row = Array.isArray(rows) ? rows[index] : undefined;
+  if (row === undefined) return "there is no such row.";
+  if (key === "tool_categories" && !TOOL_CATEGORIES.includes(clean(row?.tag, 40))) return `its tag "${clean(row?.tag, 40)}" isn't one of ${TOOL_CATEGORIES.join(", ")}.`;
+  if (index >= PROFILE_ROW_CAPS[key]) return `the list is limited to ${PROFILE_ROW_CAPS[key]} rows.`;
+  return "it is missing a required field or uses a value outside its allowed list.";
 }
 
 function isGenericToolCategoryStatistic(profile, item) {
