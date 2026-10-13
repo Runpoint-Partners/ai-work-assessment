@@ -148,6 +148,42 @@ test("rejects one asset active in more sessions than used any asset", () => {
   assert.throws(() => validateProfileV9(profile), (error) => error instanceof ProfileError && error.code === "PROFILE_V10_ASSET_COVERAGE_INVALID");
 });
 
+test("keeps a large setup whole instead of truncating it at 40 assets", () => {
+  const profile = JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8"));
+  profile.agent_practice.reusable_assets = Array.from({ length: 103 }, (_, index) => ({
+    tag: `skill-${index}`, label: `Skill ${index}`, kind: "skill", relationship: "used",
+    active_sessions: 1, observed_uses: 1, sources: ["claude"], evidence: "Invoked in a session.",
+  }));
+  validateRawProfileV9(profile);
+  sanitizeProfile(profile);
+  assert.doesNotThrow(() => validateProfileV9(profile));
+  assert.equal(profile.agent_practice.reusable_assets.length, 103);
+  profile.agent_practice.reusable_assets = Array.from({ length: 201 }, () => profile.agent_practice.reusable_assets[0]);
+  profile.schema_version = 10;
+  assert.throws(() => validateRawProfileV9(profile), (error) => error instanceof ProfileError && error.code === "PROFILE_V10_ROW_LIMIT_EXCEEDED");
+});
+
+test("rejects an unlisted tool category by name under schema v10", () => {
+  const profile = JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8"));
+  profile.agent_practice.tool_categories.unshift({ ...profile.agent_practice.tool_categories[0], tag: "skills-plugins" });
+  assert.throws(() => validateRawProfileV9(profile), (error) => error instanceof ProfileError && error.code === "PROFILE_V10_RAW_TYPE_INVALID" && /tool_categories\[0\]\.tag/.test(error.message));
+});
+
+test("a schema-v9 statistic follows its row past a dropped tool category", () => {
+  const profile = JSON.parse(readFileSync(V9_FIXTURE, "utf8"));
+  const kept = profile.agent_practice.tool_categories.findIndex((item) => item.tag === "subagents");
+  const row = profile.agent_practice.tool_categories[kept];
+  profile.agent_practice.tool_categories = [{ ...row, tag: "unsupported-new-category" }, row];
+  profile.profile_view.agent_practice.statistics = [{
+    tag: "delegated-sessions", label: "Sessions with delegated subagents", value: row.active_sessions,
+    source_field: "/agent_practice/tool_categories/1/active_sessions", evidence_ids: profile.profile_view.agent_practice.role.evidence_ids,
+  }];
+  validateRawProfileV9(profile);
+  sanitizeProfile(profile);
+  assert.equal(profile.profile_view.agent_practice.statistics[0].source_field, "/agent_practice/tool_categories/0/active_sessions");
+  assert.doesNotThrow(() => validateProfileV9(profile));
+});
+
 test("rejects coding and other-work sessions without tool metadata", () => {
   const profile = JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8"));
   Object.assign(profile.activity_analysis.work_mix, { coding_sessions: 570, other_sessions: 0, unclassified_sessions: 0, other_kinds: [] });
