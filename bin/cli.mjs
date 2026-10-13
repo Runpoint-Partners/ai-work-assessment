@@ -158,9 +158,12 @@ function fieldReport(profile) {
 function currentFieldReport(profile) {
   const fresh = freshness(profile);
   const mix = profile.profile_view?.agent_footprint?.normalized_mix;
+  // A single-tool history has no split; say which tool it came from.
+  const windows = Array.isArray(profile.activity_analysis?.coverage?.source_windows) ? profile.activity_analysis.coverage.source_windows : [];
+  const recorded = ["claude", "codex"].filter((source) => windows.some((item) => item?.source === source));
   const sourceMix = Array.isArray(mix?.items)
     ? mix.items.map((item) => `${item.source} ${Math.round(Number(item.share) * 1000) / 10}%`).join(" · ")
-    : "unavailable";
+    : recorded.length === 1 ? `unavailable (${recorded[0]} only)` : "unavailable";
   return [
     `helper release        v${HELPER_VERSION}`,
     `name                  ${profile.name || "(none)"}`,
@@ -190,7 +193,7 @@ function schema10Report(profile) {
   const assets = profile.agent_practice?.reusable_asset_coverage || {};
   return [
     `work mix              ${classified ? `coding ${share(mix.coding_sessions)} · other ${share(mix.other_sessions)} (${classified} classified, ${Number(mix.unclassified_sessions) || 0} unclassified)` : "no classified sessions"}`,
-    `reusable assets       ${count(profile.agent_practice?.reusable_assets)} listed · used in ${Number(assets.sessions_using_assets) || 0} of ${Number(assets.sessions_scanned) || 0} sessions`,
+    `reusable assets       ${Number(assets.sessions_scanned) ? `${count(profile.agent_practice?.reusable_assets)} listed · used in ${Number(assets.sessions_using_assets) || 0} of ${Number(assets.sessions_scanned)} sessions` : "not measured (no sessions with tool records)"}`,
     `side projects         ${profile.profile_view?.side_projects ? "present" : "none"}`,
   ];
 }
