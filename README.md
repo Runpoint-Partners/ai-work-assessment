@@ -43,9 +43,9 @@ the finished report.
 The supporting commands are:
 
 ```sh
-npx github:Runpoint-Partners/ai-work-assessment#v8.0.0 environment-id
-npx github:Runpoint-Partners/ai-work-assessment#v8.0.0 validate-bundle ./ai-work-evidence-xxxxxxxx.json
-npx github:Runpoint-Partners/ai-work-assessment#v8.0.0 consolidate ./bundle-folder
+npx github:Runpoint-Partners/ai-work-assessment#v9.0.0 environment-id
+npx github:Runpoint-Partners/ai-work-assessment#v9.0.0 validate-bundle ./ai-work-evidence-xxxxxxxx.json
+npx github:Runpoint-Partners/ai-work-assessment#v9.0.0 consolidate ./bundle-folder
 ```
 
 ## The privacy model
@@ -64,7 +64,10 @@ This matters more than the output, so it is worth stating precisely.
 
 The report is designed for matching. Its short view shows:
 
-- observed activity and a matched-window Claude and Codex mix when both sources overlap;
+- observed activity and a matched-window Claude and Codex mix when both sources overlap, or which one tool the history came from;
+- coding and other work: the share of sessions with tool records that changed code, against research, writing, planning, operations, and other work. Sessions without tool records stay unclassified;
+- a setup footprint: the skills, commands, MCPs, hooks, and templates the person added, which ones they built or adapted, how often any of them ran, and a band from stock to extensive that describes the setup, not skill;
+- side projects: one line on what personal or open-source work shows, without naming the project;
 - hire-relevant agent operating patterns such as delegation, parallel work, independent checks, and ownership into real use when the required numerators and denominators exist;
 - three to five industries and subject areas supported by career context, observed work, or both;
 - the strongest project fit, when to add a specialist, and what the evidence does not show.
@@ -73,11 +76,11 @@ The evidence view keeps the work arcs, source labels, limits, and structured mat
 
 ## Versioning
 
-This is **Assessment v8**, implemented by prompt version 8 and profile schema version 9. The open-source helper release is **v8.0.0**. The helper uses semantic versioning. The profile schema remains a separate data-contract version.
+This is **Assessment v9**, implemented by prompt version 9 and profile schema version 10. The open-source helper release is **v9.0.0**. The helper uses semantic versioning. The profile schema remains a separate data-contract version.
 
-Every generated profile records `prompt_version` and `schema_version`, so a report can be traced to the contract that produced it. Complete prompt-v6/schema-v8 and prompt-v7/schema-v8 profiles remain compatible. Assessment v8 uses the new matching-focused schema v9.
+Every generated profile records `prompt_version` and `schema_version`, so a report can be traced to the contract that produced it. Complete prompt-v6/schema-v8 and prompt-v7/schema-v8 profiles remain compatible, and so do prompt-v8/schema-v9 profiles. Assessment v9 writes schema v10, which adds a coding and other work view, a setup footprint, and side projects to the matching profile.
 
-The validator is version-aware. Schema v9 requires a concise visible profile, opaque evidence references, deterministic statistic sources, privacy-safe career synthesis, matching data, and strict copy budgets. Older profiles are read under their original rules.
+The validator is version-aware. Schema v10 adds deterministic work-mix and asset-coverage ledgers, a work context on each work arc, and a side-projects claim that is present exactly when an arc is personal or open-source. Schema v9 requires a concise visible profile, opaque evidence references, deterministic statistic sources, privacy-safe career synthesis, matching data, and strict copy budgets. Older profiles are read under their original rules.
 
 See the [version history](CHANGELOG.md) for release dates, compatibility, and the difference between assessment, schema, and helper versions.
 

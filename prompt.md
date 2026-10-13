@@ -1,4 +1,4 @@
-# Overflow AI Work Assessment v8
+# Overflow AI Work Assessment v9
 
 Build one concise, evidence-based work profile for the person who runs this prompt. Use only the source families selected for this run:
 
@@ -15,7 +15,7 @@ cohort statistics after submission. The fixed Overflow renderer creates the
 review page. Do not write HTML, CSS, JavaScript, SVG, charts, upload forms, or
 cohort curves.
 
-The output contract is profile schema 9 and prompt version 8.
+The output contract is profile schema 10 and prompt version 9.
 
 ## Start with a short disclosure
 
@@ -60,13 +60,13 @@ Do not infer a release from the existence of a session. Use `implemented`, `work
 8. Do not assign an overall score, rank, percentile, or cohort placement. Cohort curves and comparisons are server-owned after submission.
 9. Preserve negative evidence and uncertainty. An omitted source is a user choice, not evidence of missing ability.
 10. Abstract client, employer, project, product, colleague, repository, and
-organization names during extraction. Schema 9 keeps only generalized LinkedIn
+organization names during extraction. Schema 10 keeps only generalized LinkedIn
 synthesis. It must not contain a LinkedIn profile dump, employer or organization
 names, job titles, profile URLs, contact details, raw career descriptions, or a
 career timeline. Only the explicit public identity fields `name` and an optional
 server-issued `slug` can identify the profile owner. Never store credentials,
 tokens, private paths or URLs, raw prompts, transcript excerpts, or file contents
-in the schema-9 JSON.
+in the schema-10 JSON.
 11. Do not inspect hidden reasoning, system messages, developer messages, injected instructions, or private chain-of-thought. Use visible conversational behavior only.
 12. Do not repeat a visible claim. Each conclusion gets one home in `profile_view`.
 13. Every visible claim must cite one or more `evidence_index` IDs.
@@ -136,7 +136,7 @@ and role framing. It cannot prove implementation quality or override
 contradictory observed work. Use the page only as temporary input. Convert useful
 facts into generalized, source-labeled industry and subject-matter synthesis.
 Discard names, organizations, titles, URLs, dates tied to named roles, and raw
-descriptions before you build schema-9 JSON. Do not create a `career.timeline`.
+descriptions before you build schema-10 JSON. Do not create a `career.timeline`.
 
 ## 4. Distill sessions locally
 
@@ -153,6 +153,56 @@ For each session, retain:
 Exclude tool output, command output, file contents, system reminders, environment blocks, injected instructions, hidden analysis, and private reasoning.
 
 Create a separate metadata-only agent-operations ledger. Store only source harness, session ID, timestamp, broad tool category, safe function name, and explicit use of reusable skills, commands, MCPs, hooks, automations, agent templates, or evaluation harnesses. Keep scheduled runs, subagents, and background workers separate from interactive work.
+
+Tell interactive sessions from automated ones by the session's own metadata, not by its content:
+
+- Claude Code and Cowork: a session is interactive when its `entrypoint` is an app or terminal entry, such as `claude-desktop`, `cli`, an editor extension, or `local-agent` (a Cowork session). An `sdk-*` entrypoint, such as `sdk-py`, `sdk-ts`, or `sdk-cli`, is a program driving the agent, such as an automated review, and counts as a scheduled run.
+- Codex: read the first `session_meta` record. When it has `thread_source`, that decides: `automation` is a scheduled automation run and counts as a scheduled run even when `originator` is `Codex Desktop` and `source` is `vscode`; `guardian_review` is a review the app ran and counts as a scheduled run; `subagent` is a worker, counted toward the session that launched it as described below; `agent_created_thread` and `realtime_voice` are interactive, because the person typed or spoke in them. Otherwise read `originator` and `source`. `Codex Desktop`, `codex-tui`, `codex_work_desktop`, and editor originators are interactive. `codex_exec` is a scripted run. An originator naming another agent, such as `Claude Code`, means that agent launched the session, and a `source` with a `subagent` key is a worker. Count all three as scheduled runs.
+- Older Codex rollout files have no `session_meta`; their first line holds only `id`, `timestamp`, `instructions`, and `git`. Treat one as interactive when it has user messages over more than one turn, and as a scheduled run otherwise.
+- When a session has no such field, treat it as interactive only if it shows the person typing requests over more than one turn.
+
+Scheduled runs never enter `work_mix`, `reusable_asset_coverage`, or `interactive_sessions`. When another agent routinely launches one harness, such as review runs started from Claude Code, describe that as delegation in agent practice rather than as interactive use.
+
+For each interactive session, add three metadata-only fields to the ledger:
+
+- `code_change`: `true` when the session made at least one file-edit or file-write call on source code, `false` when it has tool metadata and no such call, and `null` when it has no tool metadata;
+- `assets_used`: `true` when the session invoked at least one reusable asset, as defined below;
+- `other_kind`: for a session with `code_change: false`, one of `research`, `writing`, `planning`, `data-analysis`, `operations`, `design`, or `other`, as defined below. Leave it empty for every other session.
+
+Source code is any file that changes how software runs or is built: application code, tests, configuration, infrastructure, schemas, migrations, build files, stylesheets, and markup. Documentation, notes, plans, and data files are not source code. Configuration files such as package manifests and theme or schema settings count; JSON, CSV, or YAML that holds content or records does not. A shell command that writes a source file, such as a heredoc, an in-place edit, an applied patch, or an inline interpreter script that writes a file, counts when the metadata shows the target file. Committing, merging, deploying, or running git alone does not.
+
+A reusable asset is a skill, command, MCP server or connector, hook, automation, agent template, or evaluation harness that someone chose to add to this person's setup: one they wrote, one their team shares, a plugin or skill they installed from a marketplace, or a connector or MCP server they connected. Anything present for every user without a choice is a built-in and never counts: the harness's own tools and subagent types, its browser, preview, pull-request, and session tools, and the skills and extensions bundled with the app. Invoking a named skill, command, or MCP server that is not a built-in is enough evidence; do not require proof of who installed it. One asset reached by different routes, such as a slash command and a skill call, is one asset. A session uses an asset only when the asset was invoked in that session, such as a skill or command called, a tool from that MCP server called, or an agent started from that template. A hook that runs automatically in every session does not make a session count.
+
+Find assets with these metadata patterns, not from memory of what a tool might be:
+
+- Claude Code and Cowork: a tool call named `mcp__<server>__<tool>` calls MCP server `<server>`. A `Skill` tool call names the skill in its `skill` input. A slash command appears in a user record as `<command-name>/name</command-name>`. An `Agent` or `Task` call names its template in `subagent_type`.
+- Codex: tool calls are `function_call` or `custom_tool_call` records with a `name`. An MCP call appears three ways: a name of the form `mcp__<server>__<tool>`; a `function_call` with `namespace: "mcp__<server>"` and a bare tool `name`; or an `mcp_tool_call` event. Code run through `exec` can also call `tools.mcp__codex_apps__<connector>_<tool>()`: `codex_apps` is the gateway, and `<connector>` is the connected service that counts. Codex lists every installed skill's `SKILL.md` path in context on each turn, so a path in context is not use. A skill is used only when a tool call reads that skill's `SKILL.md` or the person names it with `$name`.
+
+Then classify each server, skill, command, or template:
+
+- A server whose name is an opaque ID, such as a UUID, is a connector the person connected to their account. It counts even though the name says nothing; label it by what its tools do.
+- A server named `claude_ai_<Service>`, called as `mcp__claude_ai_<Service>__<tool>`, is a Claude.ai account connector the person connected. It counts; label it by the service.
+- A server or skill that comes from a plugin, such as a server named `plugin_<plugin>_<server>`, was installed and counts, unless the plugin comes from Codex's `openai-bundled` or `openai-primary-runtime` marketplace, which ship with the app.
+- The app's own pieces are built-ins: servers whose names begin with `Claude_`, `ccd_`, or `computer-use`, the `claude-in-chrome` browser server, and the terminal, preview, and visualization servers the desktop app ships; Cowork's own servers `workspace`, `mcp-registry`, `cowork`, `session_info`, `dispatch`, `Control_Chrome`, `Control_your_Mac`, `visualize`, and `filesystem`; Codex's `cua_repl` and `node_repl` and plugins from its `openai-bundled` and `openai-primary-runtime` marketplaces; built-in subagent types such as `general-purpose`, `Explore`, and `Plan`; built-in slash commands such as `/compact`, `/clear`, `/model`, and `/config`; and the harness's own functions such as `Bash`, `Read`, `Edit`, `exec`, and `apply_patch`.
+- Anything else invoked by name counts.
+
+Set each asset's `relationship` from where its definition lives:
+
+- `created`: its source is in the person's own repository or user configuration and they wrote it, such as a skill under `~/.claude/skills` or a command under `~/.claude/commands` that they authored, or the sessions show them writing its definition file;
+- `adapted`: a copied or installed asset whose definition they edited;
+- `used`: everything else, including marketplace installs and connected services.
+
+A subagent's records can sit in a separate file, such as a `subagents/` folder under the session, or be marked `isSidechain`. Count its file writes and asset calls toward the session that launched it, and do not count it as a separate interactive session.
+
+Choose `other_kind` from the visible requested outcome, not from tool names. When a session had several outcomes, choose the one that took most of the session:
+
+- `research`: finding out how something works or what is true, such as reading documentation, comparing options, or investigating a bug without changing code;
+- `writing`: prose for people, such as documentation, posts, messages, or specifications;
+- `planning`: deciding what to build or in what order, such as plans, task breakdowns, or architecture decisions;
+- `data-analysis`: querying or analyzing data to answer a question;
+- `operations`: running and shipping existing work, such as reviewing, merging, deploying, releasing, updating site content or data, triaging issues, configuring services or accounts, or responding to incidents;
+- `design`: visual or interaction design without code changes;
+- `other`: only when none of the kinds above fits. A coding request that ended without a code change takes the kind of work that did happen, usually `research` or `planning`.
 
 Record permission metadata by source. Distinguish environment-inherited, user-selected, and unclear modes. Do not treat broad permissions as good or bad. Record elevated requests only by broad purpose and unambiguous outcome.
 
@@ -186,7 +236,10 @@ Each arc gets exactly one value on each axis:
 - `responsibility`: `directed-task`, `scoped-contributor`, `workstream-owner`, or `system-owner`
 - `authorship`: `direct`, `directed-reviewed`, `mixed`, or `unclear`
 - `verification_mode`: `independent`, `self-check`, or `unclear`
+- `work_context`: `client`, `employer`, `personal`, `open-source`, or `unclear`
 - `confidence`: `high`, `medium`, or `low`
+
+Use `employer` for work at a company the person works for, including a company or business they own, co-own, or run. Use `client` for work done for an outside organization. Set `work_context: personal` only when the evidence shows the person chose the problem for themselves, outside any business. A new repository or a greenfield system alone does not establish it. Use `open-source` for public projects maintained with others, when the person isn't doing the work for an employer or client; paid open-source work is `employer` or `client`. Missing or ambiguous evidence is `unclear`.
 
 Set `reviewer_governor` only when repeated evidence shows review, approval, standards, or quality control beyond the person's own implementation.
 
@@ -267,6 +320,7 @@ Use these hard budgets:
 | Subject matter | 3 to 5 | summary 26 words; evidence label 10 words |
 | Matching | exactly 3 conclusions | each summary 34 words |
 | Limits | 2 to 4 | each summary 24 words |
+| Side projects | 0 or 1 | summary 30 words |
 
 Additional visible rules:
 
@@ -299,6 +353,9 @@ Additional visible rules:
   source counts cannot differ. Calculate `calendar_days`, `total_sessions`,
   `share`, and `sessions_per_calendar_day` from those two rows. It measures
   session-record share only. Never estimate or rewrite a count.
+- If only one of Claude and Codex has retained interactive sessions, the
+  windows cannot overlap. Use the unavailable shape below, and do not add a
+  window, coverage row, or placeholder for the missing harness.
 - If the retained Claude and Codex windows do not overlap, set
   `activity_analysis.coverage.shared_window_sessions` to `[]` and set
   `profile_view.agent_footprint.normalized_mix` to `null`. This is the only
@@ -310,9 +367,36 @@ Additional visible rules:
   Overflow cannot authenticate the session counts against raw history because
   raw sessions are not uploaded. The fixed renderer states this limit beside
   the mix. Do not repeat it in a model-authored limitation.
+- `activity_analysis.work_mix` is the deterministic ledger for coding and
+  other work. Count it from the per-session `code_change` and `other_kind`
+  fields: `coding_sessions` are `true`, `other_sessions` are `false`, and
+  `unclassified_sessions` are `null`. The three counts add up to
+  `activity_analysis.coverage.interactive_sessions`. A session without tool
+  metadata is always unclassified, so `coding_sessions + other_sessions`
+  cannot exceed the sessions with tool metadata. `other_kinds` lists each
+  kind once and adds up to `other_sessions`. The fixed renderer shows the
+  shares. Do not write a coding share in visible copy.
+- `agent_practice.reusable_asset_coverage` counts sessions that used any
+  reusable asset across the same classified sessions. `sessions_scanned`
+  equals `coding_sessions + other_sessions` from `work_mix`.
+  `sessions_using_assets` counts those sessions with `assets_used: true`. Do not sum
+  `reusable_assets[].active_sessions`, because one session can use several
+  assets. Each `reusable_assets` row is one distinct asset, such as one skill,
+  one command, or one MCP server, never a category or a group of assets. List
+  an asset only when at least one session invoked it. An always-on hook the
+  person configured is the one exception: list it with `active_sessions: 0`.
+  The fixed renderer labels the setup from the distinct assets. It
+  describes the setup, not skill. Do not rank a customized setup above a
+  stock one in visible copy.
+- Set `profile_view.side_projects` to `null` unless at least one work arc has
+  `work_context: personal` or `open-source`. When one exists, write one claim
+  about what that self-chosen work shows, such as finishing, care for the
+  user-facing result, taking it to live use, or maintaining it with others.
+  Cite a `work-arc` evidence record whose `arc_ids` include a personal or
+  open-source arc. Never name a project, product, repository, or URL.
 - Cohort metrics, percentiles, distribution curves, and comparison sample size do not belong in this JSON. The server adds them after submission.
 
-## 8. Produce profile schema 9 JSON
+## 8. Produce profile schema 10 JSON
 
 Return one valid JSON object. Do not wrap it in Markdown. Do not add commentary before or after it.
 
@@ -320,8 +404,8 @@ Required top-level structure:
 
 ```json
 {
-  "schema_version": 9,
-  "prompt_version": 8,
+  "schema_version": 10,
+  "prompt_version": 9,
   "name": "",
   "focus": "",
   "headline": "",
@@ -352,7 +436,7 @@ Keep the established schema-v8 fields needed for server matching. In particular,
 preserve rich `skills`, `work_arcs`, `activity_analysis`, `agent_practice`, and
 `domain_stamps` data. Preserve `github`, `working_style`,
 `interaction_profile`, `project_role`, `project_match`, and `limits` when
-evidence exists. Do not include the legacy `career` object in schema 9. Omit
+evidence exists. Do not include the legacy `career` object in schema 10. Omit
 empty optional window keys. Set `focus` and `headline` to the same thesis for
 backward compatibility.
 
@@ -429,6 +513,15 @@ local extraction and aggregation scripts. Do not estimate missing counts.
     },
     "context_pressure": { "token_limit_events": 0, "affected_sessions": 0, "compaction_events": 0, "recovered_sessions": 0, "repeated_failure_sessions": 0, "limitations": [] },
     "model_usage": [ { "source": "codex|claude|cowork|other", "model": "", "sessions": 0, "first_observed": "", "last_observed": "" } ],
+    "work_mix": {
+      "method": "code-change tool calls per interactive session",
+      "interactive_sessions": 0,
+      "coding_sessions": 0,
+      "other_sessions": 0,
+      "unclassified_sessions": 0,
+      "other_kinds": [ { "tag": "research|writing|planning|data-analysis|operations|design|other", "sessions": 0 } ],
+      "limitations": []
+    },
     "trend_status": "supported|partial|not-supported",
     "comparability_note": "",
     "evolution_summary": ""
@@ -480,6 +573,7 @@ local extraction and aggregation scripts. Do not estimate missing counts.
       "responsibility": "directed-task|scoped-contributor|workstream-owner|system-owner",
       "authorship": "direct|directed-reviewed|mixed|unclear",
       "verification_mode": "independent|self-check|unclear",
+      "work_context": "client|employer|personal|open-source|unclear",
       "reviewer_governor": false,
       "confidence": "high|medium|low",
       "evidence": [],
@@ -499,6 +593,7 @@ local extraction and aggregation scripts. Do not estimate missing counts.
     "reusable_assets": [
       { "tag": "", "label": "", "kind": "skill|command|mcp|hook|automation|agent-template|eval", "relationship": "used|adapted|created", "active_sessions": 0, "observed_uses": 0, "sources": ["codex|claude|cowork|other"], "evidence": "" }
     ],
+    "reusable_asset_coverage": { "sessions_scanned": 0, "sessions_using_assets": 0, "limitations": [] },
     "permission_practice": { "coverage": [], "modes": [], "elevated_requests": [], "finding": "", "guardrail_pattern": "", "limitations": [] },
     "interaction_metadata": {},
     "limitations": []
@@ -520,7 +615,7 @@ Omit `collection_summary` for a normal one-environment run. The multi-environmen
 prompt supplies it. Keep lower-confidence and exhaustive observations in these
 legacy fields even when they do not appear in `profile_view`.
 
-Use this schema-v9 extension exactly:
+Use this schema-v10 extension exactly:
 
 ```json
 {
@@ -599,7 +694,8 @@ Use this schema-v9 extension exactly:
     },
     "limits": [
       { "summary": "", "evidence_ids": ["ev-013"] }
-    ]
+    ],
+    "side_projects": { "summary": "", "evidence_ids": ["ev-014"] }
   },
   "evidence_index": [
     {
@@ -687,11 +783,27 @@ The fixed renderer can show up to four hiring-relevant operating ratios. The mod
 - **Owned into real use:** work arcs whose `delivery_state` is `live-use` or `ongoing-operation` and whose `responsibility` is `workstream-owner` or `system-owner`, divided by all qualifying work arcs.
 - **Independent-verification rate:** work arcs with `verification_mode: independent`, divided by all work arcs that have `independent`, `self-check`, or `unclear` classification. `Unclear` remains in the denominator so missing evidence cannot inflate the rate.
 - **Review governance:** if verification mode is unavailable, the renderer may show `reviewer_governor` arcs divided by qualifying work arcs. The label must state that this is review governance, not independent verification.
-- **Work mix:** renderer-owned counts of `primary_surface` and `change_type` across qualifying work arcs. These are distributions of retained arcs, not estimates of time spent.
+- **Work-arc mix:** renderer-owned counts of `primary_surface` and `change_type` across qualifying work arcs. These are distributions of retained arcs, not estimates of time spent. It is separate from the session-level `activity_analysis.work_mix`.
 - **Recovery:** show a recovery rate only when `context_pressure.recovered_sessions` and the matching failure-session denominator are collector-derived from the same scanned window. Otherwise keep recovery qualitative.
 - **Reusable controls:** show a reuse rate only when one non-overlapping session-level category supplies `active_sessions` and same-source `tool_call_coverage` supplies `sessions_scanned`. Never sum overlapping reusable assets.
 
 The page must omit an unsupported ratio. It must not substitute a qualitative score, badge, or invented denominator.
+
+When no work arc is personal or open-source, use `"side_projects": null`. Do not omit the key or send `{}`.
+
+Fixed vocabularies and row limits. Both validators reject a value outside a
+list or a list over its limit, because the upload would otherwise drop rows
+and change the page's counts:
+
+- `agent_practice.tool_categories[].tag` and `activity_analysis.monthly[].tool_categories[].tag`:
+  `shell`, `filesystem`, `code-edit`, `browser-computer-use`, `search-research`,
+  `version-control`, `deploy-infra`, `data-database`, `mcp-connectors`, or `subagents`.
+  Fold any other activity into the closest of these. Skills and plugins are
+  reusable assets, not a tool category.
+- `agent_practice.tool_categories`: at most 10 rows, each with a label and an intensity.
+- `agent_practice.reusable_assets`: at most 200 rows, one per distinct asset.
+- `agent_practice.tool_call_coverage` and `activity_analysis.coverage.source_windows`: at most 12 rows each.
+- `work_arcs`: at most 20. `evidence_index`: at most 120.
 
 Allowed `source_field` roots for visible agent-practice statistics are:
 
@@ -701,6 +813,8 @@ Allowed `source_field` roots for visible agent-practice statistics are:
 - `/agent_practice/tool_call_coverage/`
 - `/agent_practice/tool_categories/`
 - `/agent_practice/reusable_assets/`
+- `/agent_practice/reusable_asset_coverage/`
+- `/activity_analysis/work_mix/`
 - `/cadence/`
 
 The pointer must resolve to a finite, non-negative number. Array indices are
@@ -718,14 +832,14 @@ The legacy top-level `domain_stamps` keeps classified arc counts plus structured
 
 Check every item:
 
-- [ ] Output is valid JSON with `schema_version: 9` and `prompt_version: 8`.
+- [ ] Output is valid JSON with `schema_version: 10` and `prompt_version: 9`.
 - [ ] Every visible narrative claim cites existing `evidence_index` IDs.
 - [ ] Every evidence ID is opaque, matches `^ev-[0-9]{3,12}$`, and contains
       no semantic source, person, employer, project, capability, or date label.
 - [ ] Every value in a visible `sources` array is backed by a cited evidence
       record whose `source` matches that value.
 - [ ] Evidence IDs contain no raw prompts, names, private URLs, paths, or credentials.
-- [ ] The schema-9 payload contains no raw LinkedIn profile data, employer or
+- [ ] The schema-10 payload contains no raw LinkedIn profile data, employer or
       organization names, job titles, profile URLs, raw career descriptions, or
       career timeline.
 - [ ] Generalized LinkedIn-derived industry and subject-matter synthesis remains
@@ -736,6 +850,11 @@ Check every item:
       `source_field`, and exactly matches that structured field's value.
 - [ ] Agent practice describes role, decomposition, parallelism, verification, recovery, and reusable controls when supported.
 - [ ] Every work arc has `verification_mode`; independent means a separate retained check, self-check means the implementation pass checked itself, and unclear means the evidence does not establish either.
+- [ ] Every work arc has `work_context`. `personal` rests on evidence that the person chose the problem, not on a new repository.
+- [ ] `work_mix` coding, other, and unclassified sessions add up to the interactive sessions, sessions without tool metadata are unclassified, and `other_kinds` adds up to the other sessions.
+- [ ] `reusable_asset_coverage.sessions_scanned` equals `coding_sessions + other_sessions`, and `sessions_using_assets` does not exceed it.
+- [ ] Each `reusable_assets` row is one distinct asset someone chose to add: written, shared by the team, installed, or connected. Built-ins bundled with the harness or app are absent, and always-on hooks do not count toward `sessions_using_assets`.
+- [ ] `profile_view.side_projects` is `null` when no arc is personal or open-source. Otherwise it cites one of those arcs' work-arc records and names no project, product, repository, or URL.
 - [ ] Every operating ratio has a source-compatible numerator and denominator. The model did not calculate or write the displayed percentage.
 - [ ] No visible section lists generic tools, badge cards, employers, or resume chronology.
 - [ ] No visible claim appears twice or as a close paraphrase.
@@ -749,8 +868,8 @@ Check every item:
       window ledger. Its total, shares, and daily rates reconcile to those rows.
 - [ ] If there is no overlap, `shared_window_sessions` is `[]` and
       `normalized_mix` is `null`. No ratio or partial mix is present.
-- [ ] When a mix is present, its limitation says that Overflow validates
-      payload consistency but does not authenticate counts against raw history.
+- [ ] No model-authored limitation repeats the renderer's note that Overflow
+      cannot authenticate counts against raw history.
 - [ ] Mix is labeled session-record share only and does not imply time, preference, quality, or completed work.
 - [ ] Cohort placement and curves are absent from the local JSON.
 - [ ] Rich legacy matching fields remain populated.
@@ -779,7 +898,7 @@ Open the rendered HTML and inspect desktop and mobile layouts. If validation or 
 The fixed page contains Overflow's reviewed submission control. It makes no
 request until the user completes the form, chooses visibility, consents, and
 clicks the final upload button. Do not prefill the form or trigger submission.
-Only the structured payload is sent. Schema 9 contains generalized,
+Only the structured payload is sent. Schema 10 contains generalized,
 source-labeled LinkedIn synthesis and no raw LinkedIn profile data. The server
 calculates compatible cohort comparisons from stored assessment data.
 

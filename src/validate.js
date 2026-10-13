@@ -61,6 +61,39 @@ const INTERACTION_DIMENSIONS = ["task-framing", "context-strategy", "direction-e
 const PROFILE_EVIDENCE_SOURCES = ["sessions", "github", "linkedin", "assessment"];
 const PROFILE_INDUSTRY_DEPTHS = ["deep-current", "deep-sustained", "working-current", "career-depth", "observed-exposure", "career-exposure"];
 const PROFILE_MIX_SOURCES = ["claude", "codex"];
+// Schema 10: who the work was for, and what non-coding sessions were spent on.
+export const WORK_CONTEXTS = ["client", "employer", "personal", "open-source", "unclear"];
+// Self-chosen work: the arcs a side-projects claim rests on.
+const SIDE_PROJECT_CONTEXTS = ["personal", "open-source"];
+const OTHER_WORK_KINDS = ["research", "writing", "planning", "data-analysis", "operations", "design", "other"];
+const SOURCE_WINDOW_RETENTION = ["full-available", "retention-limited", "unknown"];
+const TOOL_CATEGORY_INTENSITIES = ["habitual", "recurring", "situational"];
+const REUSABLE_ASSET_KINDS = ["skill", "command", "mcp", "hook", "automation", "agent-template", "eval"];
+const REUSABLE_ASSET_RELATIONSHIPS = ["used", "adapted", "created"];
+// Row caps the sanitizer applies. The page counts from these rows, so schema
+// 10 rejects a longer list instead of letting the sanitizer truncate it.
+export const PROFILE_ROW_CAPS = {
+  tool_call_coverage: 12,
+  tool_categories: 10,
+  reusable_assets: 200,
+  source_windows: 12,
+  work_arcs: 20,
+  evidence_index: 120,
+  other_kinds: OTHER_WORK_KINDS.length,
+};
+// Marks each sanitized agent_practice row with its original index, so
+// statistic pointers can follow a row when earlier rows are dropped.
+const ROW_INDEX = Symbol("original row index");
+// The work-arc fields the sanitizer requires. An arc with an invalid value is
+// dropped, so schema 10 rejects it up front instead of losing it silently.
+const WORK_ARC_ENUMS = {
+  delivery_state: ["exploration", "working-prototype", "live-use", "ongoing-operation"],
+  system_context: ["greenfield", "early-system", "established-system", "mature-constrained", "unknown"],
+  primary_surface: WORK_SURFACES,
+  change_type: ["new-capability", "integration", "experience-improvement", "architecture-refactor", "migration", "reliability-performance", "incident-recovery", "analysis-decision-support", "operational-automation"],
+  responsibility: ["directed-task", "scoped-contributor", "workstream-owner", "system-owner"],
+  confidence: ["high", "medium", "low"],
+};
 const PROFILE_V9_TOP_LEVEL_KEYS = new Set([
   "schema_version", "prompt_version", "name", "focus", "headline", "generated_at", "generated_by",
   "collection_summary", "source_coverage", "windows", "cadence", "activity_analysis", "github", "work_arcs",
@@ -74,6 +107,8 @@ const PROFILE_STATISTIC_SOURCE_PREFIXES = [
   "/agent_practice/tool_call_coverage/",
   "/agent_practice/tool_categories/",
   "/agent_practice/reusable_assets/",
+  "/agent_practice/reusable_asset_coverage/",
+  "/activity_analysis/work_mix/",
   "/cadence/",
 ];
 const PROFILE_EVIDENCE_ID_RE = /^ev-[0-9]{3,12}$/;
@@ -152,8 +187,9 @@ export function parseProfileData(html) {
 
 export function validateRawProfileV9(profile) {
   if (!isObject(profile) || Number(profile.schema_version) < 9) return;
-  if (profile.schema_version !== 9 || profile.prompt_version !== 8) {
-    throw new ProfileError("Raw schema v9 profiles require numeric schema_version 9 and prompt_version 8.", 422, "PROFILE_V9_VERSION_INVALID");
+  const v10 = profile.schema_version === 10 && profile.prompt_version === 9;
+  if (!v10 && (profile.schema_version !== 9 || profile.prompt_version !== 8)) {
+    throw new ProfileError("Raw profiles require schema_version 9 with prompt_version 8, or schema_version 10 with prompt_version 9.", 422, "PROFILE_V9_VERSION_INVALID");
   }
   assertAllowedKeys(profile, PROFILE_V9_TOP_LEVEL_KEYS, "profile");
   assertNoRawPrivateKeys(profile);
@@ -163,7 +199,7 @@ export function validateRawProfileV9(profile) {
   requireRawString(profile.headline, "headline");
 
   const view = requireRawObject(profile.profile_view, "profile_view");
-  assertAllowedKeys(view, new Set(["hero", "agent_footprint", "agent_practice", "industries", "subject_matter", "matching", "limits"]), "profile_view");
+  assertAllowedKeys(view, new Set(["hero", "agent_footprint", "agent_practice", "industries", "subject_matter", "matching", "limits", ...(v10 ? ["side_projects"] : [])]), "profile_view");
   const hero = requireRawObject(view.hero, "profile_view.hero");
   assertAllowedKeys(hero, new Set(["thesis", "source_note", "evidence_ids"]), "profile_view.hero");
   requireRawString(hero.thesis, "profile_view.hero.thesis");
@@ -190,7 +226,11 @@ export function validateRawProfileV9(profile) {
     requireRawString(statistic.source_field, `${path}.source_field`);
     requireRawEvidenceIds(statistic.evidence_ids, `${path}.evidence_ids`);
   });
-  validateAnchoredStatistics(profile, practice.statistics);
+  // Keep the upload boundary tolerant of a renderer-generation mistake that
+  // exposes a generic tool count. The sanitizer removes those statistics
+  // before the profile is stored and rendered, while all other statistic
+  // source and value checks still run here.
+  validateAnchoredStatistics(profile, practice.statistics, { allowGenericToolCategory: true });
   requireRawArray(practice.workflow, "profile_view.agent_practice.workflow").forEach((item, index) => {
     const path = `profile_view.agent_practice.workflow[${index}]`;
     const step = requireRawObject(item, path);
@@ -225,6 +265,7 @@ export function validateRawProfileV9(profile) {
     requireRawEvidenceIds(item.evidence_ids, `profile_view.matching.${key}.evidence_ids`);
   }
   requireRawArray(view.limits, "profile_view.limits").forEach((item, index) => validateRawClaim(item, `profile_view.limits[${index}]`));
+  if (v10) validateRawProfileV10(profile, view);
 
   requireRawArray(profile.evidence_index, "evidence_index").forEach((item, index) => {
     const path = `evidence_index[${index}]`;
@@ -260,6 +301,93 @@ export function validateRawProfileV9(profile) {
     requireRawString(row.to, `${path}.to`);
     requireRawNonNegativeInt(row.sessions, `${path}.sessions`);
   });
+}
+
+// Schema 10 additions: the work-mix and asset-coverage ledgers, each arc's
+// work context, and the side-projects claim (an object, or explicit null).
+function validateRawProfileV10(profile, view) {
+  if (!("side_projects" in view) || !(view.side_projects === null || isObject(view.side_projects))) {
+    throw new ProfileError("profile_view.side_projects must be a claim object or explicit null.", 422, "PROFILE_V10_RAW_TYPE_INVALID");
+  }
+  if (isObject(view.side_projects)) validateRawClaim(view.side_projects, "profile_view.side_projects");
+
+  requireRawArray(profile.work_arcs, "work_arcs").forEach((arc, index) => {
+    requireRawString(arc?.work_context, `work_arcs[${index}].work_context`);
+    if (!WORK_CONTEXTS.includes(arc.work_context)) throw new ProfileError(`work_arcs[${index}].work_context is invalid.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    requireRawString(arc.id, `work_arcs[${index}].id`);
+    requireRawString(arc.label, `work_arcs[${index}].label`);
+    for (const [key, values] of Object.entries(WORK_ARC_ENUMS)) {
+      if (!values.includes(arc[key])) throw new ProfileError(`work_arcs[${index}].${key} is invalid.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    }
+  });
+
+  for (const [path, rows, cap] of [
+    ["agent_practice.tool_call_coverage", profile.agent_practice?.tool_call_coverage, PROFILE_ROW_CAPS.tool_call_coverage],
+    ["agent_practice.tool_categories", profile.agent_practice?.tool_categories, PROFILE_ROW_CAPS.tool_categories],
+    ["agent_practice.reusable_assets", profile.agent_practice?.reusable_assets, PROFILE_ROW_CAPS.reusable_assets],
+    ["activity_analysis.coverage.source_windows", profile.activity_analysis?.coverage?.source_windows, PROFILE_ROW_CAPS.source_windows],
+    ["activity_analysis.work_mix.other_kinds", profile.activity_analysis?.work_mix?.other_kinds, PROFILE_ROW_CAPS.other_kinds],
+    ["work_arcs", profile.work_arcs, PROFILE_ROW_CAPS.work_arcs],
+    ["evidence_index", profile.evidence_index, PROFILE_ROW_CAPS.evidence_index],
+  ]) {
+    if (Array.isArray(rows) && rows.length > cap) {
+      throw new ProfileError(`${path} has ${rows.length} rows; the limit is ${cap}.`, 422, "PROFILE_V10_ROW_LIMIT_EXCEEDED");
+    }
+  }
+  // The sanitizer drops a tool category or asset row it can't keep, which
+  // would change the page's counts and shift statistic pointers.
+  (Array.isArray(profile.agent_practice?.tool_categories) ? profile.agent_practice.tool_categories : []).forEach((row, index) => {
+    if (!TOOL_CATEGORIES.includes(row?.tag)) {
+      throw new ProfileError(`agent_practice.tool_categories[${index}].tag must be one of ${TOOL_CATEGORIES.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    }
+    if (!String(row.label || "").trim() || !TOOL_CATEGORY_INTENSITIES.includes(row.intensity)) {
+      throw new ProfileError(`agent_practice.tool_categories[${index}] needs a label and an intensity of ${TOOL_CATEGORY_INTENSITIES.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    }
+  });
+  (Array.isArray(profile.agent_practice?.reusable_assets) ? profile.agent_practice.reusable_assets : []).forEach((row, index) => {
+    const path = `agent_practice.reusable_assets[${index}]`;
+    if (!isObject(row) || !(String(row.tag || "").trim() || String(row.label || "").trim())) throw new ProfileError(`${path} needs a tag or label.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    if (!REUSABLE_ASSET_KINDS.includes(row.kind)) throw new ProfileError(`${path}.kind must be one of ${REUSABLE_ASSET_KINDS.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    if (!REUSABLE_ASSET_RELATIONSHIPS.includes(row.relationship)) throw new ProfileError(`${path}.relationship must be one of ${REUSABLE_ASSET_RELATIONSHIPS.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+  });
+
+  // The ledgers below are checked against these counts, so they must be real
+  // integers. The sanitizer would otherwise coerce or drop them.
+  const coverage = requireRawObject(profile.activity_analysis?.coverage, "activity_analysis.coverage");
+  requireRawNonNegativeInt(coverage.interactive_sessions, "activity_analysis.coverage.interactive_sessions");
+  requireRawArray(coverage.source_windows, "activity_analysis.coverage.source_windows").forEach((row, index) => {
+    if (!SOURCE_WINDOW_RETENTION.includes(row?.retention)) {
+      throw new ProfileError(`activity_analysis.coverage.source_windows[${index}].retention must be one of ${SOURCE_WINDOW_RETENTION.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    }
+  });
+  requireRawArray(profile.agent_practice?.tool_call_coverage, "agent_practice.tool_call_coverage").forEach((item, index) => {
+    const path = `agent_practice.tool_call_coverage[${index}]`;
+    const row = requireRawObject(item, path);
+    if (!AGENT_SOURCES.includes(row.source)) throw new ProfileError(`${path}.source must be one of ${AGENT_SOURCES.join(", ")}.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    for (const key of ["sessions_scanned", "sessions_with_tool_metadata"]) requireRawNonNegativeInt(row[key], `${path}.${key}`);
+  });
+
+  const mixPath = "activity_analysis.work_mix";
+  const mix = requireRawObject(profile.activity_analysis?.work_mix, mixPath);
+  assertAllowedKeys(mix, new Set(["method", "interactive_sessions", "coding_sessions", "other_sessions", "unclassified_sessions", "other_kinds", "limitations"]), mixPath);
+  requireRawString(mix.method, `${mixPath}.method`);
+  for (const key of ["interactive_sessions", "coding_sessions", "other_sessions", "unclassified_sessions"]) requireRawNonNegativeInt(mix[key], `${mixPath}.${key}`);
+  requireRawArray(mix.other_kinds, `${mixPath}.other_kinds`).forEach((item, index) => {
+    const path = `${mixPath}.other_kinds[${index}]`;
+    const row = requireRawObject(item, path);
+    assertAllowedKeys(row, new Set(["tag", "sessions"]), path);
+    requireRawString(row.tag, `${path}.tag`);
+    if (!OTHER_WORK_KINDS.includes(row.tag)) throw new ProfileError(`${path}.tag is invalid.`, 422, "PROFILE_V10_RAW_TYPE_INVALID");
+    requireRawNonNegativeInt(row.sessions, `${path}.sessions`);
+  });
+  requireRawStringArray(mix.limitations, `${mixPath}.limitations`, true);
+
+  const assetPath = "agent_practice.reusable_asset_coverage";
+  const assets = requireRawObject(profile.agent_practice?.reusable_asset_coverage, assetPath);
+  assertAllowedKeys(assets, new Set(["sessions_scanned", "sessions_using_assets", "limitations"]), assetPath);
+  requireRawNonNegativeInt(assets.sessions_scanned, `${assetPath}.sessions_scanned`);
+  requireRawNonNegativeInt(assets.sessions_using_assets, `${assetPath}.sessions_using_assets`);
+  requireRawStringArray(assets.limitations, `${assetPath}.limitations`, true);
 }
 
 function validateRawMix(mix) {
@@ -351,6 +479,11 @@ function requireRawEvidenceIds(value, path) {
 }
 
 export function sanitizeProfile(profile) {
+  const removableStatisticSources = new Set(
+    (Array.isArray(profile.profile_view?.agent_practice?.statistics) ? profile.profile_view.agent_practice.statistics : [])
+      .filter((item) => isGenericToolCategoryStatistic(profile, item))
+      .map((item) => String(item.source_field)),
+  );
   for (const key of BUNDLE_ONLY_KEYS) delete profile[key];
   profile.schema_version = nonNegativeInt(profile.schema_version);
   profile.prompt_version = nonNegativeInt(profile.prompt_version);
@@ -422,7 +555,8 @@ export function sanitizeProfile(profile) {
     const permission = isObject(practice.permission_practice) ? practice.permission_practice : {};
     profile.agent_practice = {
       tool_call_coverage: (Array.isArray(practice.tool_call_coverage) ? practice.tool_call_coverage : [])
-        .map((item) => ({
+        .map((item, index) => ({
+          [ROW_INDEX]: index,
           source: allowed(item?.source, AGENT_SOURCES),
           from: clean(item?.from, 30),
           to: clean(item?.to, 30),
@@ -432,32 +566,41 @@ export function sanitizeProfile(profile) {
           limitations: cleanStrings(item?.limitations, 8, 300),
         }))
         .filter((item) => item.source)
-        .slice(0, 12),
+        .slice(0, PROFILE_ROW_CAPS.tool_call_coverage),
       tool_categories: (Array.isArray(practice.tool_categories) ? practice.tool_categories : [])
-        .map((item) => ({
+        .map((item, index) => ({
+          [ROW_INDEX]: index,
           tag: allowed(item?.tag, TOOL_CATEGORIES),
           label: clean(item?.label, 120),
-          intensity: allowed(item?.intensity, ["habitual", "recurring", "situational"]),
+          intensity: allowed(item?.intensity, TOOL_CATEGORY_INTENSITIES),
           active_sessions: nonNegativeInt(item?.active_sessions),
           observed_calls: nonNegativeInt(item?.observed_calls),
           sources: cleanEnumStrings(item?.sources, AGENT_SOURCES, 4),
           evidence: clean(item?.evidence, 500),
         }))
         .filter((item) => item.tag && item.label && item.intensity)
-        .slice(0, 10),
+        .slice(0, PROFILE_ROW_CAPS.tool_categories),
       reusable_assets: (Array.isArray(practice.reusable_assets) ? practice.reusable_assets : [])
-        .map((item) => ({
+        .map((item, index) => ({
+          [ROW_INDEX]: index,
           tag: clean(item?.tag, 60),
           label: clean(item?.label, 120),
-          kind: allowed(item?.kind, ["skill", "command", "mcp", "hook", "automation", "agent-template", "eval"]),
-          relationship: allowed(item?.relationship, ["used", "adapted", "created"]),
+          kind: allowed(item?.kind, REUSABLE_ASSET_KINDS),
+          relationship: allowed(item?.relationship, REUSABLE_ASSET_RELATIONSHIPS),
           active_sessions: nonNegativeInt(item?.active_sessions),
           observed_uses: nonNegativeInt(item?.observed_uses),
           sources: cleanEnumStrings(item?.sources, AGENT_SOURCES, 4),
           evidence: clean(item?.evidence, 500),
         }))
         .filter((item) => (item.tag || item.label) && item.kind && item.relationship)
-        .slice(0, 40),
+        .slice(0, PROFILE_ROW_CAPS.reusable_assets),
+      ...(usesProfileV10(profile) ? {
+        reusable_asset_coverage: {
+          sessions_scanned: nonNegativeInt(practice.reusable_asset_coverage?.sessions_scanned),
+          sessions_using_assets: nonNegativeInt(practice.reusable_asset_coverage?.sessions_using_assets),
+          limitations: cleanStrings(practice.reusable_asset_coverage?.limitations, 8, 300),
+        },
+      } : {}),
       permission_practice: {
         coverage: (Array.isArray(permission.coverage) ? permission.coverage : [])
           .map((item) => ({
@@ -494,6 +637,7 @@ export function sanitizeProfile(profile) {
         limitations: cleanStrings(permission.limitations, 12, 400),
       },
     };
+    remapStatisticPointers(profile, practice, removableStatisticSources, { strict: usesProfileV10(profile) });
   } else if ("agent_practice" in profile) {
     delete profile.agent_practice;
   }
@@ -520,11 +664,11 @@ export function sanitizeProfile(profile) {
             to: clean(item?.to, 30),
             sessions: nonNegativeInt(item?.sessions),
             coverage_days: nonNegativeInt(item?.coverage_days),
-            retention: allowed(item?.retention, ["full-available", "retention-limited", "unknown"]),
+            retention: allowed(item?.retention, SOURCE_WINDOW_RETENTION),
             limitations: cleanStrings(item?.limitations, 8, 300),
           }))
           .filter((item) => item.source && item.from && item.to && item.retention)
-          .slice(0, 12),
+          .slice(0, PROFILE_ROW_CAPS.source_windows),
         shared_window_sessions: (Array.isArray(coverage.shared_window_sessions) ? coverage.shared_window_sessions : [])
           .map((item) => ({
             source: allowed(item?.source, PROFILE_MIX_SOURCES),
@@ -585,6 +729,7 @@ export function sanitizeProfile(profile) {
         }))
         .filter((item) => item.source && item.model)
         .slice(0, 30),
+      ...(usesProfileV10(profile) ? { work_mix: sanitizeWorkMix(activity.work_mix) } : {}),
       trend_status: allowed(activity.trend_status, ["supported", "partial", "not-supported"]),
       comparability_note: clean(activity.comparability_note, 700),
       evolution_summary: clean(activity.evolution_summary, 900),
@@ -630,22 +775,23 @@ export function sanitizeProfile(profile) {
     evidence: clean(domain?.evidence, 500),
   }), (domain) => domain.tag || domain.label);
 
-  sanitizeArray(profile, "work_arcs", 20, (arc) => ({
+  sanitizeArray(profile, "work_arcs", PROFILE_ROW_CAPS.work_arcs, (arc) => ({
     id: clean(arc?.id, 60),
     label: clean(arc?.label, 160),
     from: clean(arc?.from, 30),
     to: clean(arc?.to, 30),
     sources: cleanStrings(arc?.sources, 5, 30),
-    delivery_state: allowed(arc?.delivery_state, ["exploration", "working-prototype", "live-use", "ongoing-operation"]),
-    system_context: allowed(arc?.system_context, ["greenfield", "early-system", "established-system", "mature-constrained", "unknown"]),
-    primary_surface: allowed(arc?.primary_surface, WORK_SURFACES),
+    delivery_state: allowed(arc?.delivery_state, WORK_ARC_ENUMS.delivery_state),
+    system_context: allowed(arc?.system_context, WORK_ARC_ENUMS.system_context),
+    primary_surface: allowed(arc?.primary_surface, WORK_ARC_ENUMS.primary_surface),
     secondary_surface: allowed(arc?.secondary_surface, ["", ...WORK_SURFACES]),
-    change_type: allowed(arc?.change_type, ["new-capability", "integration", "experience-improvement", "architecture-refactor", "migration", "reliability-performance", "incident-recovery", "analysis-decision-support", "operational-automation"]),
-    responsibility: allowed(arc?.responsibility, ["directed-task", "scoped-contributor", "workstream-owner", "system-owner"]),
+    change_type: allowed(arc?.change_type, WORK_ARC_ENUMS.change_type),
+    responsibility: allowed(arc?.responsibility, WORK_ARC_ENUMS.responsibility),
     ...(usesProfileV9(profile) ? { authorship: allowed(arc?.authorship, ["direct", "directed-reviewed", "mixed", "unclear"]) } : {}),
     ...(usesProfileV9(profile) ? { verification_mode: allowed(arc?.verification_mode, ["independent", "self-check", "unclear"]) } : {}),
+    ...(usesProfileV10(profile) ? { work_context: allowed(arc?.work_context, WORK_CONTEXTS) } : {}),
     reviewer_governor: arc?.reviewer_governor === true,
-    confidence: allowed(arc?.confidence, ["high", "medium", "low"]),
+    confidence: allowed(arc?.confidence, WORK_ARC_ENUMS.confidence),
     evidence: cleanStrings(arc?.evidence, 8, 500),
     counterevidence: cleanStrings(arc?.counterevidence, 8, 500),
   }), (arc) => arc.id && arc.label && arc.delivery_state && arc.system_context
@@ -738,9 +884,9 @@ export function sanitizeProfile(profile) {
     delete profile.subject_matter;
   }
 
-  sanitizeProfileView(profile);
+  sanitizeProfileView(profile, removableStatisticSources);
 
-  sanitizeArray(profile, "evidence_index", 120, (item) => ({
+  sanitizeArray(profile, "evidence_index", PROFILE_ROW_CAPS.evidence_index, (item) => ({
     id: clean(item?.id, 80),
     source: allowed(item?.source, PROFILE_EVIDENCE_SOURCES),
     kind: clean(item?.kind, 80),
@@ -1055,7 +1201,7 @@ function sanitizeWorkingStyle(profile) {
   profile.working_style = result;
 }
 
-function sanitizeProfileView(profile) {
+function sanitizeProfileView(profile, removableStatisticSources = new Set()) {
   if (!isObject(profile.profile_view)) {
     if ("profile_view" in profile) delete profile.profile_view;
     return;
@@ -1108,6 +1254,8 @@ function sanitizeProfileView(profile) {
     agent_practice: {
       role: cleanClaim(practice.role),
       statistics: (Array.isArray(practice.statistics) ? practice.statistics : [])
+        .filter((item) => !removableStatisticSources.has(String(item?.source_field || ""))
+          && !isGenericToolCategoryStatistic(profile, item))
         .map((item) => ({
           tag: clean(item?.tag, 60),
           label: clean(item?.label, 120),
@@ -1161,13 +1309,31 @@ function sanitizeProfileView(profile) {
       .map((item) => cleanClaim(item))
       .filter((item) => item.summary && item.evidence_ids.length)
       .slice(0, 4),
+    ...(usesProfileV10(profile) ? { side_projects: isObject(view.side_projects) ? cleanClaim(view.side_projects) : null } : {}),
+  };
+}
+
+function sanitizeWorkMix(value) {
+  const mix = isObject(value) ? value : {};
+  return {
+    method: "code-change tool calls per interactive session",
+    interactive_sessions: nonNegativeInt(mix.interactive_sessions),
+    coding_sessions: nonNegativeInt(mix.coding_sessions),
+    other_sessions: nonNegativeInt(mix.other_sessions),
+    unclassified_sessions: nonNegativeInt(mix.unclassified_sessions),
+    other_kinds: (Array.isArray(mix.other_kinds) ? mix.other_kinds : [])
+      .map((item) => ({ tag: allowed(item?.tag, OTHER_WORK_KINDS), sessions: nonNegativeInt(item?.sessions) }))
+      .filter((item) => item.tag)
+      .slice(0, PROFILE_ROW_CAPS.other_kinds),
+    limitations: cleanStrings(mix.limitations, 8, 300),
   };
 }
 
 export function validateProfileV9(profile) {
   if (!usesProfileV9(profile)) return;
-  if (Number(profile.prompt_version) !== 8) {
-    throw new ProfileError("Profile schema 9 requires assessment prompt version 8.", 422, "PROFILE_V9_VERSION_INVALID");
+  const v10 = usesProfileV10(profile);
+  if (Number(profile.schema_version) > 10 || Number(profile.prompt_version) !== (v10 ? 9 : 8)) {
+    throw new ProfileError("Profile schema 9 requires assessment prompt version 8, and schema 10 requires prompt version 9.", 422, "PROFILE_V9_VERSION_INVALID");
   }
   if (!isObject(profile.profile_view) || !Array.isArray(profile.evidence_index) || !isObject(profile.matching_index)) {
     throw new ProfileError("Schema v9 requires profile_view, evidence_index, and matching_index.", 422, "PROFILE_V9_REQUIRED");
@@ -1185,13 +1351,15 @@ export function validateProfileV9(profile) {
     view.agent_footprint?.normalized_mix,
     profile.activity_analysis?.coverage?.source_windows,
     profile.activity_analysis?.coverage?.shared_window_sessions,
+    profile,
   );
   validateOperatingRatioInputs(profile);
+  if (v10) validateProfileV10Ledgers(profile);
 
   const practice = view.agent_practice;
   if (!isObject(practice) || !validClaim(practice.role) || !validClaim(practice.distinctive_fact)
     || !validClaim(practice.reusable_system) || !validClaim(practice.limitation)
-    || !listWithin(practice.statistics, 1, 3) || practice.statistics.some((item) => !item.evidence_ids?.length)
+    || !listWithin(practice.statistics, 0, 3) || practice.statistics.some((item) => !item.evidence_ids?.length)
     || !listWithin(practice.workflow, 4, 4) || practice.workflow.some((item) => !item.evidence_ids?.length)) {
     throw new ProfileError("Schema v9 requires a complete agent-practice view with exactly four workflow steps.", 422, "PROFILE_V9_AGENT_PRACTICE_INVALID");
   }
@@ -1252,6 +1420,7 @@ export function validateProfileV9(profile) {
     }
   }
   validateUniqueEvidenceArrays(view, profile.matching_index);
+  if (v10) validateSideProjects(profile, evidenceById);
 
   for (const key of ["industries", "capabilities", "delivery_states", "risk_gaps"]) {
     if (!listWithin(profile.matching_index[key], 1, key === "capabilities" ? 50 : 30)) {
@@ -1268,6 +1437,102 @@ export function validateProfileV9(profile) {
   assertNoRepeatedVisibleCopy(view);
   validateVisibleWordBudgets(view);
   assertNoPrivateUrls(profile);
+}
+
+// The schema 10 ledgers are collector counts. Their parts must add up to the
+// totals they claim, and those totals must agree with the existing coverage.
+function validateProfileV10Ledgers(profile) {
+  const mix = profile.activity_analysis?.work_mix;
+  if (!isObject(mix)) {
+    throw new ProfileError("Schema 10 requires activity_analysis.work_mix.", 422, "PROFILE_V10_WORK_MIX_INVALID");
+  }
+  if (mix.interactive_sessions !== nonNegativeInt(profile.activity_analysis?.coverage?.interactive_sessions)) {
+    throw new ProfileError("The work mix must cover the same interactive sessions as activity coverage.", 422, "PROFILE_V10_WORK_MIX_INVALID");
+  }
+  if (mix.coding_sessions + mix.other_sessions + mix.unclassified_sessions !== mix.interactive_sessions) {
+    throw new ProfileError("Coding, other, and unclassified sessions must add up to the interactive sessions.", 422, "PROFILE_V10_WORK_MIX_INVALID");
+  }
+  const kinds = mix.other_kinds.map((item) => item.tag);
+  if (new Set(kinds).size !== kinds.length
+    || mix.other_kinds.reduce((sum, item) => sum + item.sessions, 0) !== mix.other_sessions) {
+    throw new ProfileError("Other-work kinds must be unique and add up to the other sessions.", 422, "PROFILE_V10_WORK_MIX_INVALID");
+  }
+  // Classifying a session as coding or other work takes tool metadata. A
+  // session without it is unclassified, so classified sessions can never
+  // outnumber the sessions that have tool metadata.
+  const classified = mix.coding_sessions + mix.other_sessions;
+  const toolCoverage = Array.isArray(profile.agent_practice?.tool_call_coverage) ? profile.agent_practice.tool_call_coverage : [];
+  // Tool metadata is read from scanned sessions, and scanned sessions come
+  // from the recorded history, so neither count can outgrow its source.
+  if (toolCoverage.some((item) => item.sessions_with_tool_metadata > item.sessions_scanned)) {
+    throw new ProfileError("Sessions with tool metadata cannot exceed the sessions scanned for that source.", 422, "PROFILE_V10_WORK_MIX_INVALID");
+  }
+  const withToolMetadata = toolCoverage.reduce((sum, item) => sum + nonNegativeInt(item.sessions_with_tool_metadata), 0);
+  const recordedSessions = nonNegativeInt(profile.activity_analysis?.coverage?.interactive_sessions)
+    + nonNegativeInt(profile.activity_analysis?.coverage?.scheduled_runs);
+  if (withToolMetadata > recordedSessions) {
+    throw new ProfileError("Sessions with tool metadata cannot exceed the recorded interactive sessions and scheduled runs.", 422, "PROFILE_V10_WORK_MIX_INVALID");
+  }
+  if (classified > withToolMetadata) {
+    throw new ProfileError("Coding and other-work sessions need tool metadata; sessions without it are unclassified.", 422, "PROFILE_V10_WORK_MIX_INVALID");
+  }
+
+  // Asset use is measured across the same classified sessions, the only
+  // interactive sessions whose tool calls were read.
+  const coverage = profile.agent_practice?.reusable_asset_coverage;
+  if (!isObject(coverage)) {
+    throw new ProfileError("Schema 10 requires agent_practice.reusable_asset_coverage.", 422, "PROFILE_V10_ASSET_COVERAGE_INVALID");
+  }
+  if (coverage.sessions_scanned !== classified || coverage.sessions_using_assets > coverage.sessions_scanned) {
+    throw new ProfileError("Asset coverage must scan exactly the coding and other-work sessions, and cannot count more sessions than it scanned.", 422, "PROFILE_V10_ASSET_COVERAGE_INVALID");
+  }
+  const assets = Array.isArray(profile.agent_practice?.reusable_assets) ? profile.agent_practice.reusable_assets : [];
+  if (assets.some((item) => item.active_sessions > 0) && coverage.sessions_using_assets === 0) {
+    throw new ProfileError("Reusable assets with active sessions require asset coverage above zero.", 422, "PROFILE_V10_ASSET_COVERAGE_INVALID");
+  }
+  // Every session that ran an asset is a session that used assets.
+  if (assets.some((item) => item.active_sessions > coverage.sessions_using_assets)) {
+    throw new ProfileError("A reusable asset cannot be active in more sessions than used any asset.", 422, "PROFILE_V10_ASSET_COVERAGE_INVALID");
+  }
+}
+
+// side_projects is present exactly when a work arc is personal or
+// open-source, and it must cite a work-arc record for one of those arcs.
+function validateSideProjects(profile, evidenceById) {
+  const sideArcIds = new Set((profile.work_arcs || []).filter((arc) => SIDE_PROJECT_CONTEXTS.includes(arc.work_context)).map((arc) => arc.id));
+  const claim = profile.profile_view.side_projects;
+  if (!sideArcIds.size) {
+    if (claim !== null) throw new ProfileError("side_projects must be null when no work arc is personal or open-source.", 422, "PROFILE_V10_SIDE_PROJECTS_INVALID");
+    return;
+  }
+  if (!validClaim(claim)) {
+    throw new ProfileError("A personal or open-source work arc requires a side_projects claim.", 422, "PROFILE_V10_SIDE_PROJECTS_INVALID");
+  }
+  const citesSideArc = claim.evidence_ids.some((id) => {
+    const record = evidenceById.get(id);
+    return record?.kind === "work-arc" && (record.arc_ids || []).some((arcId) => sideArcIds.has(arcId));
+  });
+  if (!citesSideArc) {
+    throw new ProfileError("side_projects must cite a work-arc record for a personal or open-source arc.", 422, "PROFILE_V10_SIDE_PROJECTS_INVALID");
+  }
+}
+
+// Where a harness the person never used would still leave a trace. A
+// single-agent profile must have none, and its recorded windows must hold
+// every interactive session.
+function unusedSourceTraces(profile, source) {
+  const traces = [];
+  const listed = (items) => (Array.isArray(items) ? items : []);
+  const names = (item) => listed(item?.sources);
+  if (listed(profile.agent_practice?.tool_call_coverage).some((item) => item?.source === source)) traces.push("agent_practice.tool_call_coverage");
+  if (listed(profile.agent_practice?.tool_categories).some((item) => names(item).includes(source))) traces.push("agent_practice.tool_categories");
+  if (listed(profile.agent_practice?.reusable_assets).some((item) => names(item).includes(source))) traces.push("agent_practice.reusable_assets");
+  if (listed(profile.work_arcs).some((item) => names(item).includes(source))) traces.push("work_arcs");
+  if (listed(profile.activity_analysis?.model_usage).some((item) => item?.source === source)) traces.push("activity_analysis.model_usage");
+  const coverage = isObject(profile.activity_analysis?.coverage) ? profile.activity_analysis.coverage : {};
+  const windowed = listed(coverage.source_windows).reduce((sum, item) => sum + nonNegativeInt(item?.sessions), 0);
+  if (nonNegativeInt(coverage.interactive_sessions) > windowed) traces.push("activity_analysis.coverage.interactive_sessions");
+  return traces;
 }
 
 function validateOperatingRatioInputs(profile) {
@@ -1293,15 +1558,22 @@ function validateOperatingRatioInputs(profile) {
   }
 }
 
-function validateNormalizedMix(mix, sourceWindows = [], sharedWindowSessions = []) {
+function validateNormalizedMix(mix, sourceWindows = [], sharedWindowSessions = [], profile = {}) {
   if (mix === null) {
     if (!Array.isArray(sharedWindowSessions) || sharedWindowSessions.length !== 0) {
       throw new ProfileError("An unavailable normalized mix requires an empty shared-window ledger.", 422, "PROFILE_V9_MIX_LEDGER_INVALID");
     }
     const observedBySource = PROFILE_MIX_SOURCES.map((source) => (Array.isArray(sourceWindows) ? sourceWindows : [])
       .filter((item) => item?.source === source && isIsoDate(item?.from) && isIsoDate(item?.to)));
-    if (observedBySource.some((items) => !items.length)) {
-      throw new ProfileError("An unavailable normalized mix requires recorded Claude and Codex windows.", 422, "PROFILE_V9_MIX_WINDOW_INVALID");
+    // A harness the person never used has no window to overlap. It must be
+    // absent everywhere, so a source can't be dropped just to skip the mix.
+    const missing = PROFILE_MIX_SOURCES.filter((source, index) => !observedBySource[index].length);
+    if (missing.length) {
+      const traces = [...new Set(missing.flatMap((source) => unusedSourceTraces(profile, source)))];
+      if (traces.length) {
+        throw new ProfileError(`An unavailable normalized mix requires recorded Claude and Codex windows. A source without a window still appears in ${traces.join(", ")}.`, 422, "PROFILE_V9_MIX_WINDOW_INVALID");
+      }
+      return;
     }
     const exactFrom = observedBySource.map((items) => items.map((item) => item.from).sort()[0]).sort().at(-1);
     const exactTo = observedBySource.map((items) => items.map((item) => item.to).sort().at(-1)).sort()[0];
@@ -1373,7 +1645,7 @@ function validateNormalizedMix(mix, sourceWindows = [], sharedWindowSessions = [
   }
 }
 
-function validateAnchoredStatistics(profile, statistics) {
+function validateAnchoredStatistics(profile, statistics, { allowGenericToolCategory = false } = {}) {
   const tags = new Set();
   for (const item of statistics) {
     const tag = String(item.tag || "").toLowerCase();
@@ -1384,19 +1656,75 @@ function validateAnchoredStatistics(profile, statistics) {
     if (!PROFILE_STATISTIC_SOURCE_PREFIXES.some((prefix) => item.source_field.startsWith(prefix))) {
       throw new ProfileError("Agent-practice statistics must use an allowed deterministic source field.", 422, "PROFILE_V9_STATISTIC_SOURCE_INVALID");
     }
-    const toolCategoryMatch = item.source_field.match(/^\/agent_practice\/tool_categories\/(\d+)\//);
-    if (toolCategoryMatch) {
-      const category = profile.agent_practice?.tool_categories?.[Number(toolCategoryMatch[1])];
-      const genericTag = String(category?.tag || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      if (["shell", "filesystem", "file-system", "code-edit", "code-editing"].includes(genericTag)) {
-        throw new ProfileError("Generic shell, file-system, and code-editing activity cannot be a visible hiring statistic.", 422, "PROFILE_V9_STATISTIC_SOURCE_INVALID");
-      }
+    if (!allowGenericToolCategory && isGenericToolCategoryStatistic(profile, item)) {
+      throw new ProfileError("Generic shell, file-system, and code-editing activity cannot be a visible hiring statistic.", 422, "PROFILE_V9_STATISTIC_SOURCE_INVALID");
     }
     const anchoredValue = resolveJsonPointer(profile, item.source_field);
     if (typeof anchoredValue !== "number" || !Number.isFinite(anchoredValue) || item.value !== anchoredValue) {
       throw new ProfileError("Agent-practice statistic values must equal their deterministic source fields.", 422, "PROFILE_V9_STATISTIC_VALUE_INVALID");
     }
   }
+}
+
+// Statistic pointers name agent_practice rows by index. When the sanitizer
+// drops a row, later rows shift, and a pointer would resolve to a different
+// row. Each pointer is rewritten to its row's new index. This predates schema
+// 10: schema 9 uploads with an unlisted tool-category tag failed the same way.
+// A statistic whose own row was dropped is rejected with the reason under
+// schema 10, which validates those rows up front. Schema 9 keeps its existing
+// tolerance and drops that statistic, as it drops a generic one.
+const STATISTIC_ROW_POINTER_RE = /^\/agent_practice\/(tool_call_coverage|tool_categories|reusable_assets)\/(\d+)(\/.*)?$/;
+
+function remapStatisticPointers(profile, original, removable, { strict = false } = {}) {
+  const kept = {};
+  for (const key of ["tool_call_coverage", "tool_categories", "reusable_assets"]) {
+    kept[key] = profile.agent_practice[key].map((row) => row[ROW_INDEX]);
+    for (const row of profile.agent_practice[key]) delete row[ROW_INDEX];
+  }
+  const remap = (pointer) => {
+    const match = String(pointer || "").match(STATISTIC_ROW_POINTER_RE);
+    if (!match) return { pointer };
+    const [, key, index, rest = ""] = match;
+    const next = kept[key].indexOf(Number(index));
+    return next < 0 ? { dropped: { key, index: Number(index) } } : { pointer: `/agent_practice/${key}/${next}${rest}` };
+  };
+  const removableBefore = new Set(removable);
+  removable.clear();
+  for (const pointer of removableBefore) removable.add(remap(pointer).pointer ?? pointer);
+
+  const practiceView = profile.profile_view?.agent_practice;
+  if (!isObject(practiceView) || !Array.isArray(practiceView.statistics)) return;
+  practiceView.statistics = practiceView.statistics.filter((item, position) => {
+    if (!isObject(item) || typeof item.source_field !== "string" || removableBefore.has(item.source_field)) return true;
+    const result = remap(item.source_field);
+    if (result.dropped) {
+      if (!strict) return false;
+      const { key, index } = result.dropped;
+      throw new ProfileError(
+        `profile_view.agent_practice.statistics[${position}].source_field points to agent_practice.${key}[${index}], which the upload can't keep: ${droppedRowReason(key, original?.[key], index)}`,
+        422,
+        "PROFILE_V9_STATISTIC_SOURCE_DROPPED",
+      );
+    }
+    item.source_field = result.pointer;
+    return true;
+  });
+}
+
+function droppedRowReason(key, rows, index) {
+  const row = Array.isArray(rows) ? rows[index] : undefined;
+  if (row === undefined) return "there is no such row.";
+  if (key === "tool_categories" && !TOOL_CATEGORIES.includes(clean(row?.tag, 40))) return `its tag "${clean(row?.tag, 40)}" isn't one of ${TOOL_CATEGORIES.join(", ")}.`;
+  if (index >= PROFILE_ROW_CAPS[key]) return `the list is limited to ${PROFILE_ROW_CAPS[key]} rows.`;
+  return "it is missing a required field or uses a value outside its allowed list.";
+}
+
+function isGenericToolCategoryStatistic(profile, item) {
+  const toolCategoryMatch = String(item?.source_field || "").match(/^\/agent_practice\/tool_categories\/(\d+)\//);
+  if (!toolCategoryMatch) return false;
+  const category = profile.agent_practice?.tool_categories?.[Number(toolCategoryMatch[1])];
+  const genericTag = String(category?.tag || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return ["shell", "filesystem", "file-system", "code-edit", "code-editing"].includes(genericTag);
 }
 
 function resolveJsonPointer(root, pointer) {
@@ -1459,6 +1787,7 @@ function validateVisibleWordBudgets(view) {
   });
   Object.values(view.matching).forEach((item) => assertWordBudget(item.summary, 34, "matching summary"));
   view.limits.forEach((item) => assertWordBudget(item.summary, 24, "profile limit"));
+  if (view.side_projects) assertWordBudget(view.side_projects.summary, 30, "side-projects summary");
 }
 
 function assertWordBudget(value, maximum, label) {
@@ -1604,6 +1933,10 @@ function usesCompleteBadgeMapSchema(profile) {
 
 function usesProfileV9(profile) {
   return Number(profile?.schema_version) >= 9;
+}
+
+function usesProfileV10(profile) {
+  return Number(profile?.schema_version) >= 10;
 }
 
 function proofStars(value, fallback = 1) {

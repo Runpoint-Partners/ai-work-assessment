@@ -8,7 +8,7 @@ const PROFILE_V9_TOP_LEVEL_KEYS = new Set([
   "schema_version", "prompt_version", "name", "focus", "headline", "generated_at", "generated_by",
   "collection_summary", "source_coverage", "windows", "cadence", "activity_analysis", "github", "work_arcs",
   "skills", "agent_practice", "domain_stamps", "project_role", "working_style", "interaction_profile",
-  "project_match", "limits", "profile_view", "evidence_index", "matching_index",
+  "project_match", "limits", "profile_view", "evidence_index", "matching_index", "verification",
 ]);
 const PRIVATE_REFERENCE_PATTERNS = [
   /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
@@ -25,7 +25,8 @@ const RAW_PRIVATE_KEYS = new Set([
 export function profileV9PrivacyErrors(profile) {
   if (!isRecord(profile)) return ["Schema v9 profile data must be an object."];
   const errors = [];
-  if (profile.schema_version !== 9 || profile.prompt_version !== 8) errors.push("Schema v9 rendering requires numeric schema_version 9 and prompt_version 8.");
+  const supportedVersion = (profile.schema_version === 9 && profile.prompt_version === 8) || (profile.schema_version === 10 && profile.prompt_version === 9);
+  if (!supportedVersion) errors.push("Rendering requires numeric schema_version 9 with prompt_version 8, or 10 with prompt_version 9.");
   if (!isRecord(profile.profile_view?.hero) || !isRecord(profile.profile_view?.agent_footprint) || !isRecord(profile.profile_view?.agent_practice) || !Array.isArray(profile.profile_view?.industries) || !Array.isArray(profile.profile_view?.subject_matter) || !isRecord(profile.profile_view?.matching) || !Array.isArray(profile.evidence_index) || !isRecord(profile.matching_index)) errors.push("Schema v9 rendering requires the complete profile view, evidence index, and matching index.");
   const heroThesis = value(profile.profile_view?.hero?.thesis);
   if (value(profile.focus) !== heroThesis || value(profile.headline) !== heroThesis) errors.push("Schema v9 focus and headline must equal the hero thesis.");
@@ -52,7 +53,8 @@ export function profileV9PrivacyErrors(profile) {
 
 function validateVisibleShapeKeys(profile, errors) {
   const view = isRecord(profile.profile_view) ? profile.profile_view : {};
-  knownKeys(view, ["hero", "agent_footprint", "agent_practice", "industries", "subject_matter", "matching", "limits"], "profile_view", errors);
+  knownKeys(view, ["hero", "agent_footprint", "agent_practice", "industries", "subject_matter", "matching", "limits", ...(profile.schema_version === 10 ? ["side_projects"] : [])], "profile_view", errors);
+  if (isRecord(view.side_projects)) knownKeys(view.side_projects, ["summary", "evidence_ids"], "profile_view.side_projects", errors);
   knownKeys(view.hero, ["thesis", "source_note", "evidence_ids"], "profile_view.hero", errors);
   knownKeys(view.agent_footprint, ["normalized_mix"], "profile_view.agent_footprint", errors);
   const mix = view.agent_footprint?.normalized_mix;
@@ -78,6 +80,7 @@ function validateVisibleShapeKeys(profile, errors) {
   list(matchingIndex.capabilities).forEach((item, index) => knownKeys(item, ["tag", "label", "depth", "authorship", "arc_ids", "evidence_ids"], `matching_index.capabilities[${index}]`, errors));
   list(matchingIndex.delivery_states).forEach((item, index) => knownKeys(item, ["state", "arc_count", "arc_ids", "evidence_ids"], `matching_index.delivery_states[${index}]`, errors));
   list(matchingIndex.risk_gaps).forEach((item, index) => knownKeys(item, ["tag", "label", "status", "implication", "evidence_ids"], `matching_index.risk_gaps[${index}]`, errors));
+  knownKeys(profile.verification, ["status", "claims_independently_verified", "server_normalized"], "verification", errors);
 }
 
 function knownKeys(valueToCheck, allowed, path, errors) {
@@ -147,7 +150,8 @@ export function renderProfileV9Document(profile = {}, {
       ${sourceMarkers(hero.evidence_ids, evidence, true)}
     </div>
   </section>
-  ${agentFootprint(view.agent_footprint, cohort, evidence, cohortMode)}
+  ${agentFootprint(view.agent_footprint, cohort, evidence, cohortMode, safeProfile.activity_analysis?.coverage)}
+  ${codingAndOtherWork(safeProfile.activity_analysis?.work_mix)}
   ${agentPractice(view.agent_practice, safeProfile, evidence)}
   ${industries(view.industries, evidence)}
   ${subjectMatter(view.subject_matter, evidence)}
@@ -166,13 +170,15 @@ ${serialized}
 </html>`;
 }
 
-function agentFootprint(footprintValue, cohort, evidence, cohortMode) {
+function agentFootprint(footprintValue, cohort, evidence, cohortMode, coverage) {
   const footprint = isRecord(footprintValue) ? footprintValue : {};
   const mix = isRecord(footprint.normalized_mix) ? footprint.normalized_mix : {};
   const items = list(mix.items).filter(isRecord).slice(0, 2);
-  const mixMarkup = items.length ? normalizedMix(mix, items, evidence) : emptyMix();
+  const single = items.length ? "" : singleMixSource(coverage);
+  const mixMarkup = items.length ? normalizedMix(mix, items, evidence) : single ? singleSourceMix(single, coverage) : emptyMix();
+  const mixNote = single ? `All recorded sessions come from ${sourceLabel(single)}.` : "Tool mix uses the same dates for both tools.";
   return `<section class="shell section reveal" id="agent-footprint" aria-labelledby="agent-footprint-title">
-    <div class="section-head"><span class="section-index">01 / Agent footprint</span><div><h2 id="agent-footprint-title">Observed agent activity.</h2><p>${cohortMode === "none" ? "Activity counts use retained local history." : "Network placement uses submitted profiles that follow the same rules."} Tool mix uses the same dates for both tools.</p></div></div>
+    <div class="section-head"><span class="section-index">01 / Agent footprint</span><div><h2 id="agent-footprint-title">Observed agent activity.</h2><p>${cohortMode === "none" ? "Activity counts use retained local history." : "Network placement uses submitted profiles that follow the same rules."} ${escapeHtml(mixNote)}</p></div></div>
   </section>
   ${cohort}
   <section class="shell section section-continuation reveal" id="normalized-mix" aria-label="Normalized agent source mix">${mixMarkup}</section>`;
@@ -197,6 +203,28 @@ function normalizedMix(mix, items, evidence) {
     ${limitations.length > 1 ? `<div class="limit-list full-only">${limitations.slice(1).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>` : ""}
     ${sourceMarkers(mix.evidence_ids, evidence, true)}
   </div>`;
+}
+
+// The one of Claude Code and Codex with recorded windows, when the other has
+// none. A single-tool history has no side-by-side split to show.
+function singleMixSource(coverageValue) {
+  const windows = list(coverageValue?.source_windows).filter(isRecord);
+  const recorded = ["claude", "codex"].filter((source) => windows.some((item) => value(item.source) === source));
+  return recorded.length === 1 ? recorded[0] : "";
+}
+
+function singleSourceWindow(source, coverageValue) {
+  const windows = list(coverageValue?.source_windows).filter((item) => isRecord(item) && value(item.source) === source);
+  return {
+    sessions: windows.reduce((sum, item) => sum + (number(item.sessions) || 0), 0),
+    from: windows.map((item) => value(item.from)).filter(Boolean).sort()[0] || "",
+    to: windows.map((item) => value(item.to)).filter(Boolean).sort().at(-1) || "",
+  };
+}
+
+function singleSourceMix(source, coverageValue) {
+  const window = singleSourceWindow(source, coverageValue);
+  return `<div class="empty-state"><span class="source">Single-tool history</span><h3>${escapeHtml(sourceLabel(source))} only</h3><p>${escapeHtml(formatNumber(window.sessions))} session records from ${escapeHtml(dateRange(window.from, window.to))}, all in ${escapeHtml(sourceLabel(source))}. A Claude / Codex split needs history from both tools over the same dates, so none is shown.</p></div>`;
 }
 
 function emptyMix() {
@@ -225,6 +253,8 @@ function agentPractice(practiceValue, profile, evidence) {
     ${workflow.length ? `<div class="practice-flow full-only" aria-label="Observed agent workflow">${workflow.map((item, index) => `<article class="practice-step"><span class="step-no">${String(index + 1).padStart(2, "0")}</span><h3>${escapeHtml(value(item.label))}</h3><p>${escapeHtml(value(item.summary))}</p></article>`).join("")}</div>` : ""}
     ${practiceProof("What is distinctive", distinctive, evidence)}
     ${practiceProof("Reusable operating system", reusable, evidence)}
+    ${setupFootprint(profile.agent_practice)}
+    ${sideProjects(profile.profile_view?.side_projects, profile, evidence)}
     ${limitation.summary ? `<div class="practice-proof full-only"><h3>Where the evidence bends</h3><div><p>${escapeHtml(limitation.summary)}</p></div></div>` : ""}
   </section>`;
 }
@@ -318,6 +348,109 @@ function operatingMix(mix) {
   return `<div class="operating-mix"><div class="operating-mix-head"><h3>${escapeHtml(mix.title)}</h3><span>${escapeHtml(formatNumber(mix.total))} qualifying arcs</span></div><div class="operating-mix-bar" role="img" aria-label="${escapeAttr(aria)}" style="grid-template-columns:${widths.map((width) => `${width}fr`).join(" ")}">${mix.items.map((item) => `<i title="${escapeAttr(`${item.label}: ${item.count} of ${mix.total}`)}"></i>`).join("")}</div><div class="operating-mix-labels">${mix.items.map((item) => `<span><b>${escapeHtml(item.label)}</b>${escapeHtml(`${item.count}/${mix.total}`)}</span>`).join("")}</div></div>`;
 }
 
+// Schema 10. Coding and other work, as a share of the interactive sessions
+// whose tool calls were read. The collector counts sessions; this only
+// divides and labels them. Sessions without tool records stay out of the bar.
+function codingAndOtherWork(mixValue) {
+  if (!isRecord(mixValue)) return "";
+  const total = number(mixValue.interactive_sessions);
+  const coding = number(mixValue.coding_sessions) || 0;
+  const other = number(mixValue.other_sessions) || 0;
+  const unclassified = number(mixValue.unclassified_sessions) || 0;
+  const classified = coding + other;
+  if (!total || !classified) return "";
+  const segments = [
+    { kind: "coding", label: "Coding", sessions: coding },
+    { kind: "other", label: "Other work", sessions: other },
+  ].filter((item) => item.sessions);
+  // Largest kind first; the catch-all "other" always goes last.
+  const kinds = list(mixValue.other_kinds)
+    .filter((item) => isRecord(item) && number(item.sessions))
+    .sort((a, b) => (a.tag === "other") - (b.tag === "other") || number(b.sessions) - number(a.sessions));
+  const aria = segments.map((item) => `${item.label} ${formatPercent(item.sessions / classified)}, ${formatNumber(item.sessions)} sessions`).join("; ");
+  // Widths stay proportional. A segment too narrow for its label shows color
+  // only; the legend below always carries every value.
+  return `<section class="shell section section-continuation reveal" id="work-mix" aria-label="Coding and other work">
+    <div class="split-method">
+      <div class="split-method-head"><div><span class="source">Session-record share</span><h3>Coding and other work</h3></div><span>${escapeHtml(formatNumber(classified))} classified sessions</span></div>
+      <div class="split-bar" role="img" aria-label="${escapeAttr(aria)}" style="grid-template-columns:${segments.map((item) => `minmax(0, ${item.sessions}fr)`).join(" ")}">
+        ${segments.map((item) => `<div class="split-segment${item.sessions / classified < 0.2 ? " is-narrow" : ""}" data-kind="${item.kind}"><b>${escapeHtml(item.label)}</b><strong>${escapeHtml(formatPercent(item.sessions / classified))}</strong></div>`).join("")}
+      </div>
+      <div class="split-facts">${segments.map((item) => `<div><span>${escapeHtml(item.label)}</span><b>${escapeHtml(formatPercent(item.sessions / classified))} · ${escapeHtml(formatNumber(item.sessions))}</b></div>`).join("")}</div>
+      ${kinds.length ? `<div class="split-facts work-kinds">${kinds.map((item) => `<div><span>${escapeHtml(label(item.tag))}</span><b>${escapeHtml(formatNumber(item.sessions))}</b></div>`).join("")}</div>` : ""}
+      <p>${escapeHtml(formatNumber(classified))} of ${escapeHtml(formatNumber(total))} interactive sessions had tool records. A session counts as coding when it made a code-change tool call; other work had tool records and no code change.${unclassified ? ` ${escapeHtml(formatNumber(unclassified))} sessions without tool records are not counted.` : ""} This compares session records, not time spent or quality.</p>
+    </div>
+  </section>`;
+}
+
+// Applied at render time, so the cut points can change without anyone
+// re-running the assessment.
+const SETUP_BANDS = [
+  { minimum: 11, label: "Extensive setup" },
+  { minimum: 4, label: "Customized setup" },
+  { minimum: 1, label: "Light setup" },
+  { minimum: 0, label: "Stock setup" },
+];
+const ASSET_KIND_LABELS = {
+  skill: ["skill", "skills"], command: ["command", "commands"], mcp: ["MCP", "MCPs"], hook: ["hook", "hooks"],
+  automation: ["automation", "automations"], "agent-template": ["agent template", "agent templates"], eval: ["eval", "evals"],
+};
+
+// Schema 10. How customized the harness is: reusable assets by kind, what the
+// person built, and how often any asset ran. The band describes the setup,
+// not skill.
+function setupFootprint(practiceValue) {
+  const coverage = isRecord(practiceValue?.reusable_asset_coverage) ? practiceValue.reusable_asset_coverage : null;
+  if (!coverage) return "";
+  // With no tool records read, an empty asset list means nothing was
+  // measured, not a stock setup.
+  if (!number(coverage.sessions_scanned)) {
+    return `<div class="practice-proof setup-footprint"><h3>Setup</h3><div><p class="setup-band">Setup not measured</p><p>No sessions had tool records, so reusable skills, commands, MCPs, hooks, and templates could not be counted.</p></div></div>`;
+  }
+  // One asset can appear once per source or relationship; count it once.
+  const seen = new Set();
+  const assets = list(practiceValue.reusable_assets).filter(isRecord).filter((item) => {
+    const key = `${value(item.kind)}:${(value(item.tag) || value(item.label)).toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const band = SETUP_BANDS.find((item) => assets.length >= item.minimum);
+  const byKind = Object.entries(ASSET_KIND_LABELS)
+    .map(([kind, [one, many]]) => {
+      const count = assets.filter((item) => value(item.kind) === kind).length;
+      return count ? `${count} ${count === 1 ? one : many}` : "";
+    })
+    .filter(Boolean);
+  const created = assets.filter((item) => value(item.relationship) === "created").length;
+  const adapted = assets.filter((item) => value(item.relationship) === "adapted").length;
+  const authored = [created ? `${created} created` : "", adapted ? `${adapted} adapted` : ""].filter(Boolean).join(", ");
+  const scanned = number(coverage.sessions_scanned);
+  const using = number(coverage.sessions_using_assets);
+  const share = scanned && using != null && using <= scanned
+    ? `Used in ${formatPercent(using / scanned)} of sessions with tool records (${formatNumber(using)} of ${formatNumber(scanned)}).`
+    : "";
+  const counts = byKind.length
+    ? `${byKind.join(" · ")}${authored ? `. ${authored} by this person` : ""}.`
+    : "No reusable skills, commands, MCPs, hooks, or templates were observed.";
+  return `<div class="practice-proof setup-footprint"><h3>Setup</h3><div><p class="setup-band">${escapeHtml(band.label)}</p><p>${escapeHtml(counts)}</p>${share ? `<p>${escapeHtml(share)}</p>` : ""}</div></div>`;
+}
+
+// Schema 10. The side-projects claim, with the personal and open-source work
+// examples behind it.
+function sideProjects(claimValue, profile, evidence) {
+  const item = claim(claimValue);
+  if (!item.summary) return "";
+  const arcs = list(profile?.work_arcs).filter(isRecord);
+  const personal = arcs.filter((arc) => value(arc.work_context) === "personal");
+  const openSource = arcs.filter((arc) => value(arc.work_context) === "open-source");
+  const total = personal.length + openSource.length;
+  const inUse = [...personal, ...openSource].filter((arc) => ["live-use", "ongoing-operation"].includes(value(arc.delivery_state))).length;
+  const kinds = [personal.length ? `${personal.length} personal` : "", openSource.length ? `${openSource.length} open-source` : ""].filter(Boolean).join(" and ");
+  const basis = `${kinds} work example${total === 1 ? "" : "s"}${inUse ? ` · ${inUse} in real use` : ""}`;
+  return `<div class="practice-proof side-projects"><h3>Side projects</h3><div><p>${escapeHtml(item.summary)}</p><small>${escapeHtml(basis)}</small>${sourceMarkers(item.evidence_ids, evidence)}</div></div>`;
+}
+
 function practiceProof(title, item, evidence) {
   if (!item.summary) return "";
   return `<div class="practice-proof"><h3>${escapeHtml(title)}</h3><div><p>${escapeHtml(item.summary)}</p></div></div>`;
@@ -367,6 +500,7 @@ function shareCard(view, profile, evidence, presentation) {
   const items = list(mix.items).filter(isRecord);
   const claude = items.find((item) => value(item.source) === "claude");
   const codex = items.find((item) => value(item.source) === "codex");
+  const coverage = profile.activity_analysis?.coverage;
   const role = claim(view.agent_practice?.role);
   const industry = list(view.industries).find(isRecord) || {};
   const fit = isRecord(view.matching?.strongest_fit) ? view.matching.strongest_fit : {};
@@ -383,18 +517,37 @@ function shareCard(view, profile, evidence, presentation) {
         <text x="1146" y="69" fill="#928a7e" text-anchor="end" font-family="monospace" font-size="12" letter-spacing="1">EVIDENCE, NOT VIBES</text>
         <text x="54" y="166" fill="#f4f0e8" font-family="Arial Narrow,Arial,sans-serif" font-size="76" font-weight="800">${escapeHtml(name.toUpperCase())}</text>
         ${svgTextLines(value(hero.thesis), 54, 222, 580, 31, 42)}
-        <g transform="translate(700 150)"><text fill="#928a7e" font-family="monospace" font-size="12" letter-spacing="1">SHARED-WINDOW AGENT MIX</text>
+        ${claude && codex ? `<g transform="translate(700 150)"><text fill="#928a7e" font-family="monospace" font-size="12" letter-spacing="1">SHARED-WINDOW AGENT MIX</text>
           <rect y="30" width="446" height="70" fill="#f4f0e8"/><rect x="${446 * clamp(number(claude?.share), 0, 100) / 100}" y="30" width="${446 * clamp(number(codex?.share), 0, 100) / 100}" height="70" fill="#ff4d00"/>
           <text x="18" y="75" fill="#0a0a09" font-family="Arial,sans-serif" font-size="21" font-weight="700">CLAUDE ${escapeHtml(formatPercent(claude?.share))}</text><text x="428" y="75" fill="#0a0a09" text-anchor="end" font-family="Arial,sans-serif" font-size="21" font-weight="700">CODEX ${escapeHtml(formatPercent(codex?.share))}</text>
           <text y="126" fill="#b8b0a3" font-family="monospace" font-size="13">${escapeHtml(formatNumber(mix.total_sessions))} retained records / ${escapeHtml(formatNumber(mix.calendar_days))} shared days · ${escapeHtml(formatDecimal(number(mix.total_sessions) / number(mix.calendar_days)))} / day</text>
           <text y="150" fill="#928a7e" font-family="monospace" font-size="10">ACTIVITY DENSITY, NOT QUALITY OR TIME SPENT</text>
-        </g>
+        </g>` : shareMixUnavailable(coverage)}
         ${shareSignal(54, 438, "AGENT PRACTICE", role.summary)}${shareSignal(432, 438, "INDUSTRY", value(industry.label))}${shareSignal(810, 438, "STRONGEST FIT", value(fit.label))}
         <line x1="54" y1="592" x2="1146" y2="592" stroke="#38342d"/><text x="54" y="616" fill="#928a7e" font-family="monospace" font-size="11">Career context + observed agent work</text><text x="1146" y="616" fill="${escapeAttr(presentation.accentColor)}" text-anchor="end" font-family="monospace" font-size="11">${escapeHtml(presentation.shareFooter)}</text>
       </svg>
     </div>
     ${sourceMarkers([...list(hero.evidence_ids), ...list(role.evidence_ids), ...list(industry.evidence_ids), ...list(fit.evidence_ids)], evidence)}
   </section>`;
+}
+
+// The share card's mix panel when there is no shared-window split: either a
+// single-tool history or two tools whose dates never overlap.
+function shareMixUnavailable(coverage) {
+  const single = singleMixSource(coverage);
+  if (single) {
+    const window = singleSourceWindow(single, coverage);
+    return `<g transform="translate(700 150)"><text fill="#928a7e" font-family="monospace" font-size="12" letter-spacing="1">AGENT HISTORY</text>
+          <rect y="30" width="446" height="70" fill="#f4f0e8"/><text x="18" y="75" fill="#0a0a09" font-family="Arial,sans-serif" font-size="21" font-weight="700">${escapeHtml(sourceLabel(single).toUpperCase())} ONLY</text>
+          <text y="126" fill="#b8b0a3" font-family="monospace" font-size="13">${escapeHtml(formatNumber(window.sessions))} retained records · single-tool history</text>
+          <text y="150" fill="#928a7e" font-family="monospace" font-size="10">A CLAUDE / CODEX SPLIT NEEDS BOTH TOOLS</text>
+        </g>`;
+  }
+  return `<g transform="translate(700 150)"><text fill="#928a7e" font-family="monospace" font-size="12" letter-spacing="1">SHARED-WINDOW AGENT MIX</text>
+          <rect y="30" width="446" height="70" fill="none" stroke="#38342d"/><text x="18" y="75" fill="#b8b0a3" font-family="Arial,sans-serif" font-size="21" font-weight="700">NOT CALCULATED</text>
+          <text y="126" fill="#b8b0a3" font-family="monospace" font-size="13">No shared Claude / Codex window</text>
+          <text y="150" fill="#928a7e" font-family="monospace" font-size="10">A SPLIT NEEDS BOTH TOOLS OVER THE SAME DATES</text>
+        </g>`;
 }
 
 function shareSignal(x, y, labelText, summary) {
@@ -680,7 +833,7 @@ const PROFILE_V9_SCRIPT = `(() => {
 
 const PROFILE_V9_STYLES = `
 :root{--ink:#0a0a09;--surface:#11110f;--surface-2:#181713;--paper:#f4f0e8;--muted:#b8b0a3;--quiet:#928a7e;--line:#38342d;--hot:#ff4d00;--green:#9ee0ad;--amber:#ffc66d;--red:#ff8a73;--content:1180px;--gutter:clamp(20px,4vw,56px);--display:"Avenir Next Condensed","Avenir Next",sans-serif;--body:"Avenir Next",Avenir,sans-serif;--mono:".SF NS Mono",Menlo,Consolas,monospace;color-scheme:dark}
-*{box-sizing:border-box}html{scroll-behavior:smooth;overflow-x:hidden}body{margin:0;overflow-x:hidden;background:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px),var(--ink);background-size:48px 48px;color:var(--paper);font:17px/1.55 var(--body)}a{color:inherit}button,input{font:inherit}.shell{width:min(var(--content),calc(100% - (var(--gutter) * 2)));margin-inline:auto}.site-head{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:68px;border-bottom:1px solid var(--line);background:rgba(10,10,9,.94);backdrop-filter:blur(18px)}.brand{display:inline-flex;align-items:center;gap:12px;text-decoration:none;font:700 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase}.brand-mark{display:grid;place-items:center;width:25px;height:25px;border:1px solid var(--hot);color:var(--hot);transition:transform .3s ease}.brand:hover .brand-mark{transform:rotate(-8deg)}.view-switch{display:inline-flex;padding:3px;border:1px solid var(--line);background:#0e0e0c}.view-switch button{border:0;background:transparent;color:var(--muted);padding:9px 12px;cursor:pointer;font:700 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}.view-switch button[aria-pressed=true]{background:var(--paper);color:var(--ink)}.local-only-notice{border:1px solid var(--hot);background:rgba(255,77,0,.08);padding:12px 14px;margin-top:24px;font:12px/1.6 var(--mono)}.eyebrow,.source,.section-index,.source-markers{font:700 10px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase}.eyebrow,.section-index{color:var(--hot)}.source{color:var(--quiet)}.hero{padding:clamp(72px,12vw,150px) 0 clamp(62px,9vw,110px)}.hero h1{max-width:1000px;margin:20px 0 0;font:700 clamp(68px,12vw,168px)/.78 var(--display);letter-spacing:-.065em;text-transform:uppercase}.hero h1 span{color:var(--hot)}.thesis{max-width:1040px;margin:38px 0 0;font-size:clamp(24px,3.2vw,43px);line-height:1.08;letter-spacing:-.035em}.hero-note{max-width:880px;margin:20px 0 0;color:var(--muted);font-size:16px}.section{padding:clamp(72px,10vw,124px) 0;border-bottom:1px solid var(--line);scroll-margin-top:82px}.section-continuation{padding-top:56px}.section-head{display:grid;grid-template-columns:210px minmax(0,1fr);gap:30px;margin-bottom:52px}.section-head h2{margin:-8px 0 0;font:700 clamp(44px,6vw,78px)/.9 var(--display);letter-spacing:-.045em;text-transform:uppercase}.section-head h2.long-title{font-size:clamp(40px,5vw,66px)}.section-head p{max-width:760px;margin:20px 0 0;color:var(--muted)}.source-markers{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;color:var(--quiet);letter-spacing:.04em}.source-markers i{font-style:normal;border:1px solid var(--line);padding:4px 6px}.cohort-gate{border-block:1px solid var(--line);background:var(--surface);padding:clamp(52px,7vw,84px) 0}.cohort-gate h2{max-width:850px;margin:16px 0 0;font:700 clamp(40px,6vw,72px)/.9 var(--display);text-transform:uppercase}.cohort-gate p{max-width:720px;color:var(--muted)}.empty-distribution{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:28px;height:70px;margin-top:38px;border-bottom:1px solid var(--line)}.empty-distribution i{border-top:1px dashed var(--quiet);opacity:.45}.split-method{padding:30px;border:1px solid var(--line);background:rgba(255,77,0,.035)}.split-method-head{display:flex;justify-content:space-between;gap:22px;align-items:end}.split-method h3,.empty-state h3{margin:9px 0 0;font:700 clamp(28px,4vw,42px)/.95 var(--display);text-transform:uppercase}.split-method-head>span{color:var(--green);font:700 11px/1.4 var(--mono);letter-spacing:.07em;text-transform:uppercase}.split-bar{display:grid;min-height:76px;margin-top:22px;border:1px solid var(--line)}.split-segment{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:17px;background:var(--paper);color:var(--ink);min-width:0}.split-segment+ .split-segment{border-left:1px solid var(--ink);background:var(--hot)}.split-segment b{font-size:14px}.split-segment strong{font:700 30px/.8 var(--display)}.split-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}.split-facts div{display:flex;justify-content:space-between;gap:16px;padding:12px 16px;border:1px solid var(--line);color:var(--muted);font-size:13px}.split-facts b{color:var(--paper)}.split-method>p,.empty-state p{max-width:900px;margin:18px 0 0;color:var(--muted);font-size:14px}.limit-list{margin-top:20px;padding-left:18px;border-left:2px solid var(--amber)}.limit-list p{color:var(--muted);font-size:13px}.empty-state{padding:30px;border:1px solid var(--line);background:var(--surface)}.practice-lead{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:clamp(42px,8vw,100px);padding-bottom:46px;border-bottom:1px solid var(--paper)}.practice-thesis{margin:0;max-width:780px;font:700 clamp(36px,5vw,64px)/.94 var(--display);letter-spacing:-.035em;text-transform:uppercase}.practice-stats{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--paper)}.practice-stat{padding:19px 16px 16px 0;border-bottom:1px solid var(--line)}.practice-stat:nth-child(even){border-left:1px solid var(--line);padding-left:16px}.practice-stat strong{display:block;color:var(--hot);font:700 38px/.9 var(--display)}.practice-stat>span:not(.source-markers){display:block;margin-top:8px;color:var(--muted);font-size:12px}.practice-flow{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}.practice-step{min-height:182px;padding:28px 24px 26px 0}.practice-step+.practice-step{border-left:1px solid var(--line);padding-left:24px}.step-no{color:var(--hot);font:700 11px/1 var(--mono)}.practice-step h3{margin:24px 0 0;font:700 27px/.95 var(--display);text-transform:uppercase}.practice-step p{margin:12px 0 0;color:var(--muted);font-size:14px}.practice-proof{display:grid;grid-template-columns:210px minmax(0,1fr);gap:30px;padding:25px 0;border-bottom:1px solid var(--line)}.practice-proof h3{margin:0;font-size:18px}.practice-proof p{margin:0;color:var(--muted)}.industry-map,.expertise-matrix{border-top:1px solid var(--paper)}.industry-row,.expertise-item{display:grid;grid-template-columns:minmax(220px,.72fr) minmax(0,1.28fr) 150px;gap:34px;align-items:start;padding:30px 0;border-bottom:1px solid var(--line)}.industry-row h3{margin:0;font:700 28px/.95 var(--display);text-transform:uppercase}.industry-row h3 span{display:block;margin-top:10px;color:var(--muted);font:500 13px/1.35 var(--body);text-transform:none}.industry-blend{display:grid;grid-template-columns:1fr 1fr;gap:24px}.industry-blend p,.expertise-item p{margin:0;color:var(--muted);font-size:15px}.industry-blend b{display:block;margin-bottom:7px;color:var(--paper);font:700 10px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase}.industry-depth,.evidence-type{color:var(--green);text-align:right;font:700 11px/1.4 var(--mono);letter-spacing:.07em;text-transform:uppercase}.industry-depth.context{color:var(--amber)}.expertise-item h3{margin:0;font-size:22px;line-height:1.1}.decision-grid{display:grid;grid-template-columns:1.15fr .95fr .9fr;border-top:1px solid var(--paper)}.decision-cell{padding:28px 28px 0 0}.decision-cell+.decision-cell{border-left:1px solid var(--line);padding-left:28px}.decision-cell h3{margin:16px 0 0;font:700 32px/.95 var(--display);text-transform:uppercase}.decision-cell p{margin:16px 0 0;color:var(--muted);font-size:15px}.decision-cell[data-tone=pair] .eyebrow{color:var(--amber)}.decision-cell[data-tone=gap] .eyebrow{color:var(--red)}.limits{border-top:1px solid var(--paper)}.limits article{padding:22px 0;border-bottom:1px solid var(--line)}.limits p{max-width:900px;margin:0;color:var(--muted)}details{margin-top:24px;border:1px solid var(--line);padding:18px}summary{cursor:pointer;color:var(--hot);font:700 11px var(--mono);letter-spacing:.08em;text-transform:uppercase}.evidence-index>div{display:grid;grid-template-columns:110px 100px 1fr;gap:18px;padding:14px 0;border-bottom:1px solid var(--line)}.evidence-index b,.evidence-index span{font:700 10px var(--mono);text-transform:uppercase}.evidence-index span{color:var(--hot)}.evidence-index p{margin:0;color:var(--muted);font-size:13px}.generated{color:var(--quiet);font:10px var(--mono);text-transform:uppercase}.local-upload form{display:grid;gap:18px;max-width:760px}.local-upload label,.local-upload fieldset{display:grid;gap:8px;color:var(--muted)}.local-upload input[type=email],.local-upload input[type=url]{width:100%;border:1px solid var(--line);background:var(--surface);color:var(--paper);padding:13px}.local-upload fieldset{border:1px solid var(--line);padding:16px}.local-upload fieldset label,.consent{display:flex;align-items:flex-start;gap:9px}.local-upload button{width:max-content;border:1px solid var(--hot);background:var(--hot);color:var(--ink);padding:13px 17px;cursor:pointer;font:700 11px var(--mono);letter-spacing:.08em;text-transform:uppercase}.share-actions{display:flex;align-items:center;gap:10px;margin:-24px 0 22px}.share-actions button{border:1px solid var(--hot);background:transparent;color:var(--paper);padding:11px 14px;cursor:pointer;font:700 10px var(--mono);letter-spacing:.08em;text-transform:uppercase}.share-actions button:first-child{background:var(--hot);color:var(--ink)}.share-actions span{margin-left:auto;color:var(--quiet);font:10px var(--mono);text-transform:uppercase}.share-frame{border:1px solid var(--line);background:#0a0a09;box-shadow:0 28px 70px rgba(0,0,0,.36);overflow:hidden}.share-frame svg{display:block;width:100%;height:auto}footer{min-height:110px;display:flex;align-items:center;justify-content:space-between;gap:20px;color:var(--muted);font:10px var(--mono);letter-spacing:.1em;text-transform:uppercase}footer b{color:var(--hot)}footer a{text-decoration:none;border-bottom:1px solid var(--line)}.toast{position:fixed;right:24px;bottom:24px;z-index:70;max-width:280px;transform:translateY(130%);opacity:0;background:var(--hot);color:var(--ink);padding:14px 16px;font:700 11px var(--mono);text-transform:uppercase;transition:.25s ease}.toast.show{transform:none;opacity:1}.reveal{opacity:1;transform:none}.full-only{display:none!important}body[data-view=full] .full-only{display:block!important}body[data-view=full] .industry-row.full-only,body[data-view=full] .expertise-item.full-only,body[data-view=full] .practice-proof.full-only,body[data-view=full] .practice-flow.full-only,body[data-view=full] .decision-cell.full-only{display:grid!important}body:not([data-view=full]) .industry-row{grid-template-columns:minmax(0,1fr) 150px}body:not([data-view=full]) .industry-blend{display:none}body:not([data-view=full]) .decision-grid{grid-template-columns:1fr}
+*{box-sizing:border-box}html{scroll-behavior:smooth;overflow-x:hidden}body{margin:0;overflow-x:hidden;background:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px),var(--ink);background-size:48px 48px;color:var(--paper);font:17px/1.55 var(--body)}a{color:inherit}button,input{font:inherit}.shell{width:min(var(--content),calc(100% - (var(--gutter) * 2)));margin-inline:auto}.site-head{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:68px;border-bottom:1px solid var(--line);background:rgba(10,10,9,.94);backdrop-filter:blur(18px)}.brand{display:inline-flex;align-items:center;gap:12px;text-decoration:none;font:700 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase}.brand-mark{display:grid;place-items:center;width:25px;height:25px;border:1px solid var(--hot);color:var(--hot);transition:transform .3s ease}.brand:hover .brand-mark{transform:rotate(-8deg)}.view-switch{display:inline-flex;padding:3px;border:1px solid var(--line);background:#0e0e0c}.view-switch button{border:0;background:transparent;color:var(--muted);padding:9px 12px;cursor:pointer;font:700 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}.view-switch button[aria-pressed=true]{background:var(--paper);color:var(--ink)}.local-only-notice{border:1px solid var(--hot);background:rgba(255,77,0,.08);padding:12px 14px;margin-top:24px;font:12px/1.6 var(--mono)}.eyebrow,.source,.section-index,.source-markers{font:700 10px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase}.eyebrow,.section-index{color:var(--hot)}.source{color:var(--quiet)}.hero{padding:clamp(72px,12vw,150px) 0 clamp(62px,9vw,110px)}.hero h1{max-width:1000px;margin:20px 0 0;font:700 clamp(68px,12vw,168px)/.78 var(--display);letter-spacing:-.065em;text-transform:uppercase}.hero h1 span{color:var(--hot)}.thesis{max-width:1040px;margin:38px 0 0;font-size:clamp(24px,3.2vw,43px);line-height:1.08;letter-spacing:-.035em}.hero-note{max-width:880px;margin:20px 0 0;color:var(--muted);font-size:16px}.section{padding:clamp(72px,10vw,124px) 0;border-bottom:1px solid var(--line);scroll-margin-top:82px}.section-continuation{padding-top:56px}.section-head{display:grid;grid-template-columns:210px minmax(0,1fr);gap:30px;margin-bottom:52px}.section-head h2{margin:-8px 0 0;font:700 clamp(44px,6vw,78px)/.9 var(--display);letter-spacing:-.045em;text-transform:uppercase}.section-head h2.long-title{font-size:clamp(40px,5vw,66px)}.section-head p{max-width:760px;margin:20px 0 0;color:var(--muted)}.source-markers{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;color:var(--quiet);letter-spacing:.04em}.source-markers i{font-style:normal;border:1px solid var(--line);padding:4px 6px}.cohort-gate{border-block:1px solid var(--line);background:var(--surface);padding:clamp(52px,7vw,84px) 0}.cohort-gate h2{max-width:850px;margin:16px 0 0;font:700 clamp(40px,6vw,72px)/.9 var(--display);text-transform:uppercase}.cohort-gate p{max-width:720px;color:var(--muted)}.empty-distribution{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:28px;height:70px;margin-top:38px;border-bottom:1px solid var(--line)}.empty-distribution i{border-top:1px dashed var(--quiet);opacity:.45}.split-method{padding:30px;border:1px solid var(--line);background:rgba(255,77,0,.035)}.split-method-head{display:flex;justify-content:space-between;gap:22px;align-items:end}.split-method h3,.empty-state h3{margin:9px 0 0;font:700 clamp(28px,4vw,42px)/.95 var(--display);text-transform:uppercase}.split-method-head>span{color:var(--green);font:700 11px/1.4 var(--mono);letter-spacing:.07em;text-transform:uppercase}.split-bar{display:grid;min-height:76px;margin-top:22px;border:1px solid var(--line)}.split-segment{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:17px;background:var(--paper);color:var(--ink);min-width:0}.split-segment+ .split-segment{border-left:1px solid var(--ink);background:var(--hot)}.split-segment b{font-size:14px}.split-segment strong{font:700 30px/.8 var(--display)}.split-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}.split-facts div{display:flex;justify-content:space-between;gap:16px;padding:12px 16px;border:1px solid var(--line);color:var(--muted);font-size:13px}.split-facts b{color:var(--paper)}.split-segment[data-kind=other]{background:var(--hot)}@media(min-width:621px){.split-segment.is-narrow{padding:0}.split-segment.is-narrow b,.split-segment.is-narrow strong{display:none}}.work-kinds{grid-template-columns:repeat(4,minmax(0,1fr))}.setup-band{margin:0 0 8px!important;color:var(--paper)!important;font:700 22px/1 var(--display);text-transform:uppercase}.side-projects small{display:block;margin-top:10px;color:var(--quiet);font:700 10px/1.4 var(--mono);letter-spacing:.05em;text-transform:uppercase}.split-method>p,.empty-state p{max-width:900px;margin:18px 0 0;color:var(--muted);font-size:14px}.limit-list{margin-top:20px;padding-left:18px;border-left:2px solid var(--amber)}.limit-list p{color:var(--muted);font-size:13px}.empty-state{padding:30px;border:1px solid var(--line);background:var(--surface)}.practice-lead{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:clamp(42px,8vw,100px);padding-bottom:46px;border-bottom:1px solid var(--paper)}.practice-thesis{margin:0;max-width:780px;font:700 clamp(36px,5vw,64px)/.94 var(--display);letter-spacing:-.035em;text-transform:uppercase}.practice-stats{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--paper)}.practice-stat{padding:19px 16px 16px 0;border-bottom:1px solid var(--line)}.practice-stat:nth-child(even){border-left:1px solid var(--line);padding-left:16px}.practice-stat strong{display:block;color:var(--hot);font:700 38px/.9 var(--display)}.practice-stat>span:not(.source-markers){display:block;margin-top:8px;color:var(--muted);font-size:12px}.practice-flow{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}.practice-step{min-height:182px;padding:28px 24px 26px 0}.practice-step+.practice-step{border-left:1px solid var(--line);padding-left:24px}.step-no{color:var(--hot);font:700 11px/1 var(--mono)}.practice-step h3{margin:24px 0 0;font:700 27px/.95 var(--display);text-transform:uppercase}.practice-step p{margin:12px 0 0;color:var(--muted);font-size:14px}.practice-proof{display:grid;grid-template-columns:210px minmax(0,1fr);gap:30px;padding:25px 0;border-bottom:1px solid var(--line)}.practice-proof h3{margin:0;font-size:18px}.practice-proof p{margin:0;color:var(--muted)}.industry-map,.expertise-matrix{border-top:1px solid var(--paper)}.industry-row,.expertise-item{display:grid;grid-template-columns:minmax(220px,.72fr) minmax(0,1.28fr) 150px;gap:34px;align-items:start;padding:30px 0;border-bottom:1px solid var(--line)}.industry-row h3{margin:0;font:700 28px/.95 var(--display);text-transform:uppercase}.industry-row h3 span{display:block;margin-top:10px;color:var(--muted);font:500 13px/1.35 var(--body);text-transform:none}.industry-blend{display:grid;grid-template-columns:1fr 1fr;gap:24px}.industry-blend p,.expertise-item p{margin:0;color:var(--muted);font-size:15px}.industry-blend b{display:block;margin-bottom:7px;color:var(--paper);font:700 10px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase}.industry-depth,.evidence-type{color:var(--green);text-align:right;font:700 11px/1.4 var(--mono);letter-spacing:.07em;text-transform:uppercase}.industry-depth.context{color:var(--amber)}.expertise-item h3{margin:0;font-size:22px;line-height:1.1}.decision-grid{display:grid;grid-template-columns:1.15fr .95fr .9fr;border-top:1px solid var(--paper)}.decision-cell{padding:28px 28px 0 0}.decision-cell+.decision-cell{border-left:1px solid var(--line);padding-left:28px}.decision-cell h3{margin:16px 0 0;font:700 32px/.95 var(--display);text-transform:uppercase}.decision-cell p{margin:16px 0 0;color:var(--muted);font-size:15px}.decision-cell[data-tone=pair] .eyebrow{color:var(--amber)}.decision-cell[data-tone=gap] .eyebrow{color:var(--red)}.limits{border-top:1px solid var(--paper)}.limits article{padding:22px 0;border-bottom:1px solid var(--line)}.limits p{max-width:900px;margin:0;color:var(--muted)}details{margin-top:24px;border:1px solid var(--line);padding:18px}summary{cursor:pointer;color:var(--hot);font:700 11px var(--mono);letter-spacing:.08em;text-transform:uppercase}.evidence-index>div{display:grid;grid-template-columns:110px 100px 1fr;gap:18px;padding:14px 0;border-bottom:1px solid var(--line)}.evidence-index b,.evidence-index span{font:700 10px var(--mono);text-transform:uppercase}.evidence-index span{color:var(--hot)}.evidence-index p{margin:0;color:var(--muted);font-size:13px}.generated{color:var(--quiet);font:10px var(--mono);text-transform:uppercase}.local-upload form{display:grid;gap:18px;max-width:760px}.local-upload label,.local-upload fieldset{display:grid;gap:8px;color:var(--muted)}.local-upload input[type=email],.local-upload input[type=url]{width:100%;border:1px solid var(--line);background:var(--surface);color:var(--paper);padding:13px}.local-upload fieldset{border:1px solid var(--line);padding:16px}.local-upload fieldset label,.consent{display:flex;align-items:flex-start;gap:9px}.local-upload button{width:max-content;border:1px solid var(--hot);background:var(--hot);color:var(--ink);padding:13px 17px;cursor:pointer;font:700 11px var(--mono);letter-spacing:.08em;text-transform:uppercase}.share-actions{display:flex;align-items:center;gap:10px;margin:-24px 0 22px}.share-actions button{border:1px solid var(--hot);background:transparent;color:var(--paper);padding:11px 14px;cursor:pointer;font:700 10px var(--mono);letter-spacing:.08em;text-transform:uppercase}.share-actions button:first-child{background:var(--hot);color:var(--ink)}.share-actions span{margin-left:auto;color:var(--quiet);font:10px var(--mono);text-transform:uppercase}.share-frame{border:1px solid var(--line);background:#0a0a09;box-shadow:0 28px 70px rgba(0,0,0,.36);overflow:hidden}.share-frame svg{display:block;width:100%;height:auto}footer{min-height:110px;display:flex;align-items:center;justify-content:space-between;gap:20px;color:var(--muted);font:10px var(--mono);letter-spacing:.1em;text-transform:uppercase}footer b{color:var(--hot)}footer a{text-decoration:none;border-bottom:1px solid var(--line)}.toast{position:fixed;right:24px;bottom:24px;z-index:70;max-width:280px;transform:translateY(130%);opacity:0;background:var(--hot);color:var(--ink);padding:14px 16px;font:700 11px var(--mono);text-transform:uppercase;transition:.25s ease}.toast.show{transform:none;opacity:1}.reveal{opacity:1;transform:none}.full-only{display:none!important}body[data-view=full] .full-only{display:block!important}body[data-view=full] .industry-row.full-only,body[data-view=full] .expertise-item.full-only,body[data-view=full] .practice-proof.full-only,body[data-view=full] .practice-flow.full-only,body[data-view=full] .decision-cell.full-only{display:grid!important}body:not([data-view=full]) .industry-row{grid-template-columns:minmax(0,1fr) 150px}body:not([data-view=full]) .industry-blend{display:none}body:not([data-view=full]) .decision-grid{grid-template-columns:1fr}
 body:not([data-view=full]) .source-markers:not(.source-markers--summary){display:none}
 .section{padding:clamp(54px,7vw,88px) 0;border-bottom:0}.section-continuation{padding-top:30px}.section-head{grid-template-columns:1fr;gap:12px;margin-bottom:38px}.section-head h2{margin:0}.section-head p{margin-top:12px}.hero{padding-top:clamp(64px,9vw,112px);padding-bottom:clamp(52px,7vw,86px)}.cohort-gate{border:0;background:transparent;padding:12px 0}.cohort-card{border-left:2px solid var(--hot);padding:24px 0 24px 24px}.cohort-gate h2{margin:8px 0 0;font-size:clamp(28px,4vw,42px);line-height:.95}.cohort-gate p{margin:12px 0 0}.cohort-sample{max-width:none}.cohort-sample-head{display:flex;align-items:end;justify-content:space-between;gap:24px}.cohort-upload-link{display:inline-flex;min-height:44px;align-items:center;justify-content:center;border:1px solid var(--hot);padding:12px 16px;color:var(--paper);text-decoration:none;font:700 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}.cohort-upload-link:hover{background:var(--hot);color:var(--ink)}.cohort-sample-rows{margin-top:24px;border-top:1px solid var(--line)}.cohort-sample-row{display:grid;grid-template-columns:minmax(220px,.65fr) minmax(320px,1.35fr);gap:32px;align-items:center;min-height:104px;border-bottom:1px solid var(--line)}.cohort-sample-value{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:baseline}.cohort-sample-value strong{color:var(--hot);font:700 40px/.8 var(--display)}.cohort-sample-value span{max-width:210px;color:var(--muted);font-size:13px;line-height:1.3}.cohort-sample-chart svg{display:block;width:100%;height:68px;overflow:visible}.cohort-sample-chart line{stroke:var(--quiet);stroke-width:1}.cohort-density-fill{fill:rgba(244,240,232,.12);stroke:var(--muted);stroke-width:1.5}.cohort-placement-line{stroke:var(--hot)!important;stroke-dasharray:3 4}.cohort-placement-dot{fill:var(--ink);stroke:var(--hot);stroke-width:3}.cohort-sample-chart text{fill:var(--hot);font:700 8px var(--mono);letter-spacing:.08em}.cohort-sample-note{color:var(--quiet)!important;font:700 9px/1.4 var(--mono);letter-spacing:.08em;text-transform:uppercase}.empty-distribution{display:none}
 .section-head--practice h2{max-width:940px;font-size:clamp(40px,5vw,64px)}.operating-signals{display:grid;grid-template-columns:repeat(var(--signal-count),minmax(0,1fr));border-top:1px solid var(--paper);border-bottom:1px solid var(--line)}.operating-signal{min-width:0;padding:24px 24px 24px 0}.operating-signal+.operating-signal{border-left:1px solid var(--line);padding-left:24px}.operating-signal>strong{display:block;margin-top:20px;color:var(--hot);font:700 clamp(44px,5vw,64px)/.8 var(--display)}.operating-signal h3{margin:16px 0 0;font:700 20px/1 var(--display);text-transform:uppercase}.operating-signal p{margin:12px 0 0;color:var(--muted);font-size:14px;line-height:1.45}.operating-signal small{display:block;margin-top:16px;color:var(--quiet);font:700 10px/1.4 var(--mono);letter-spacing:.04em;text-transform:uppercase}.operating-mixes{display:grid;grid-template-columns:repeat(var(--mix-count),minmax(0,1fr));gap:32px;padding:32px 0;border-bottom:1px solid var(--paper)}.operating-mix-head{display:flex;align-items:end;justify-content:space-between;gap:16px}.operating-mix-head h3{margin:0;font:700 22px/1 var(--display);text-transform:uppercase}.operating-mix-head span{color:var(--quiet);font:700 10px/1.4 var(--mono);letter-spacing:.05em;text-transform:uppercase}.operating-mix-bar{display:grid;height:16px;margin-top:16px;border:1px solid var(--line)}.operating-mix-bar i{display:block;background:var(--hot)}.operating-mix-bar i:nth-child(2){background:var(--paper)}.operating-mix-bar i:nth-child(3){background:var(--green)}.operating-mix-bar i:nth-child(4){background:var(--amber)}.operating-mix-bar i+i{border-left:1px solid var(--ink)}.operating-mix-labels{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:12px}.operating-mix-labels span{display:flex;gap:8px;color:var(--quiet);font-size:12px}.operating-mix-labels b{color:var(--muted);font-weight:600}.cohort-example-stamp{border:1px solid var(--hot);padding:8px 12px;color:var(--hot);font:700 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}.cohort-sample-row{grid-template-columns:minmax(220px,.65fr) minmax(320px,1.35fr);min-height:88px}.cohort-sample-value{display:block}.cohort-sample-value span{display:block;color:var(--paper);font:700 18px/1 var(--display);text-transform:uppercase}.cohort-sample-value strong{display:block;margin-top:8px;color:var(--quiet);font:700 10px/1.4 var(--mono);letter-spacing:.06em;text-transform:uppercase}.cohort-density-fill{fill:rgba(146,138,126,.08);stroke:var(--quiet);stroke-dasharray:4 5;opacity:.55}.cohort-sample-chart text{fill:var(--quiet);font-size:10px;opacity:.8}.cohort-sample-foot{display:flex;align-items:center;justify-content:space-between;gap:24px}.cohort-sample-foot .cohort-upload-link{margin-top:16px}.cohort-sample-note{margin-top:16px!important;font-size:10px}.cohort-upload-link:focus-visible{outline:2px solid var(--paper);outline-offset:4px}.cohort-placement-line,.cohort-placement-dot{display:none}
@@ -688,7 +841,7 @@ body:not([data-view=full]) .source-markers:not(.source-markers--summary){display
 @media(max-width:620px){body{font-size:16px}.shell{width:min(calc(100% - 32px),var(--content))}.site-head{align-items:flex-start;padding:14px 0}.brand>span:last-child{display:none}.view-switch button{padding:8px;font-size:9px}.hero{padding-top:68px}.hero h1{font-size:clamp(58px,21vw,92px)}.section-head{grid-template-columns:1fr;gap:18px}.split-method{padding:20px}.split-method-head{align-items:flex-start;flex-direction:column}.split-bar{grid-template-columns:1fr!important}.split-segment+.split-segment{border-left:0;border-top:1px solid var(--ink)}.split-facts,.practice-stats,.practice-flow{grid-template-columns:1fr}.split-facts div{align-items:flex-start;flex-direction:column}.practice-stat:nth-child(even),.practice-step+.practice-step{border-left:0;padding-left:0}.practice-step:nth-child(n+2){border-top:1px solid var(--line)}.practice-proof,.industry-row,.expertise-item,body:not([data-view=full]) .industry-row{grid-template-columns:1fr;gap:10px}.industry-blend{grid-template-columns:1fr}.industry-depth,.evidence-type{grid-column:auto;text-align:left}.evidence-index>div{grid-template-columns:1fr;gap:6px}.share-actions{align-items:stretch;flex-direction:column}.share-actions span{margin-left:0}.share-actions button{width:100%}footer{flex-direction:column;align-items:flex-start;padding-block:28px}.local-upload button{width:100%}}
 @media(max-width:620px){.site-head{align-items:center;min-height:58px;padding:8px 0}.hero{padding:48px 0 44px}.thesis{margin-top:28px}.section{padding:44px 0}.section-continuation{padding-top:22px}.section-head{gap:12px;margin-bottom:28px}.section-head p{margin-top:8px}.section-head--practice h2{font-size:36px}.cohort-gate{padding:4px 0}.cohort-card{padding:16px 0 16px 16px}.cohort-gate h2{font-size:30px}.cohort-gate p{margin-top:8px;line-height:1.45}.cohort-sample-head{display:block}.cohort-example-stamp{display:inline-block;margin-top:16px}.cohort-upload-link{width:100%;margin-top:16px}.cohort-sample-rows{margin-top:20px}.cohort-sample-row{grid-template-columns:1fr;gap:8px;min-height:0;padding:16px 0}.cohort-sample-value span{font-size:16px}.cohort-sample-value strong{margin-top:8px;font-size:10px}.cohort-sample-chart svg{height:56px}.cohort-sample-foot{display:block}.cohort-sample-note{margin-top:12px!important;font-size:10px}.operating-signals{grid-template-columns:1fr}.operating-signal{padding:24px 0}.operating-signal+.operating-signal{border-left:0;border-top:1px solid var(--line);padding-left:0}.operating-signal:nth-child(3){border-top:1px solid var(--line)}.operating-signal>strong{font-size:52px}.operating-mixes{grid-template-columns:1fr;gap:32px;padding:32px 0}.operating-mix-head{align-items:flex-start;flex-direction:column;gap:4px}.operating-mix-labels{display:grid;grid-template-columns:1fr}.operating-mix-labels span{justify-content:space-between}}
 .practice-stats{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:32px}.practice-stat:nth-child(even){border-left:0}.practice-stat+.practice-stat{border-left:1px solid var(--line);padding-left:16px}
-@media(max-width:620px){.practice-stats{grid-template-columns:1fr}.practice-stat+.practice-stat{border-left:0;padding-left:0}}
+@media(max-width:620px){.practice-stats{grid-template-columns:1fr}.practice-stat+.practice-stat{border-left:0;padding-left:0}.work-kinds{grid-template-columns:repeat(2,minmax(0,1fr))}.work-kinds div{flex-direction:row;align-items:center}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 @media print{:root{--ink:#fff;--surface:#fff;--paper:#111;--muted:#444;--quiet:#555;--line:#bbb;--hot:#b33500}.site-head{position:static}.view-switch,.local-upload,.local-only-notice,.toast{display:none!important}.reveal{opacity:1;transform:none}.full-only{display:block!important}.industry-row.full-only,.expertise-item.full-only,.practice-proof.full-only{display:grid!important}.section{break-inside:avoid}}
 `;

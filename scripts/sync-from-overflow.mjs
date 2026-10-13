@@ -61,6 +61,18 @@ const MODULES = [
     raw: true,
   },
   {
+    target: "docs/profile-v10-contract.md",
+    source: "docs/profile-v10-contract.md",
+    transforms: [],
+    raw: true,
+  },
+  {
+    target: "fixtures/profile-v10.sample.json",
+    source: "scripts/fixtures/profile-v10.golden.json",
+    transforms: [],
+    raw: true,
+  },
+  {
     target: "src/evidence-bundle.js",
     source: "scripts/lib/evidence-bundle.mjs",
     transforms: [],

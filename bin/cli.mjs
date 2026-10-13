@@ -158,9 +158,12 @@ function fieldReport(profile) {
 function currentFieldReport(profile) {
   const fresh = freshness(profile);
   const mix = profile.profile_view?.agent_footprint?.normalized_mix;
+  // A single-tool history has no split; say which tool it came from.
+  const windows = Array.isArray(profile.activity_analysis?.coverage?.source_windows) ? profile.activity_analysis.coverage.source_windows : [];
+  const recorded = ["claude", "codex"].filter((source) => windows.some((item) => item?.source === source));
   const sourceMix = Array.isArray(mix?.items)
     ? mix.items.map((item) => `${item.source} ${Math.round(Number(item.share) * 1000) / 10}%`).join(" · ")
-    : "unavailable";
+    : recorded.length === 1 ? `unavailable (${recorded[0]} only)` : "unavailable";
   return [
     `helper release        v${HELPER_VERSION}`,
     `name                  ${profile.name || "(none)"}`,
@@ -176,7 +179,23 @@ function currentFieldReport(profile) {
     `matching capabilities ${count(profile.matching_index?.capabilities)}`,
     `agent statistics      ${count(profile.profile_view?.agent_practice?.statistics)}`,
     `shared-window mix     ${sourceMix}`,
+    ...schema10Report(profile),
   ].join("\n");
+}
+
+// Schema 10: coding and other work across the sessions with tool records, and
+// how many reusable assets ran across those same sessions.
+function schema10Report(profile) {
+  if (Number(profile?.schema_version) < 10) return [];
+  const mix = profile.activity_analysis?.work_mix || {};
+  const classified = (Number(mix.coding_sessions) || 0) + (Number(mix.other_sessions) || 0);
+  const share = (part) => `${Math.round((Number(part) || 0) / classified * 1000) / 10}%`;
+  const assets = profile.agent_practice?.reusable_asset_coverage || {};
+  return [
+    `work mix              ${classified ? `coding ${share(mix.coding_sessions)} · other ${share(mix.other_sessions)} (${classified} classified, ${Number(mix.unclassified_sessions) || 0} unclassified)` : "no classified sessions"}`,
+    `reusable assets       ${Number(assets.sessions_scanned) ? `${count(profile.agent_practice?.reusable_assets)} listed · used in ${Number(assets.sessions_using_assets) || 0} of ${Number(assets.sessions_scanned)} sessions` : "not measured (no sessions with tool records)"}`,
+    `side projects         ${profile.profile_view?.side_projects ? "present" : "none"}`,
+  ];
 }
 
 function main() {

@@ -9,7 +9,7 @@ const upstream = resolve(process.env.OVERFLOW_ASSESSMENT_REPO || `${root}/../ove
 const contract = await json(`${root}/assessment-contract.json`);
 const pkg = await json(`${root}/package.json`);
 const prompt = await text(`${root}/prompt.md`);
-const sample = await json(`${root}/fixtures/profile-v9.sample.json`);
+const sample = await json(`${root}/fixtures/profile-v10.sample.json`);
 const changelog = await text(`${root}/CHANGELOG.md`);
 const readme = await text(`${root}/README.md`);
 
