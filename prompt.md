@@ -157,8 +157,22 @@ Create a separate metadata-only agent-operations ledger. Store only source harne
 For each interactive session, add three metadata-only fields to the ledger:
 
 - `code_change`: `true` when the session made at least one file-edit or file-write call on source code, `false` when it has tool metadata and no such call, and `null` when it has no tool metadata;
-- `assets_used`: `true` when the session invoked at least one listed reusable skill, command, MCP, hook, automation, agent template, or evaluation harness;
-- `other_kind`: for a session with `code_change: false`, one of `research`, `writing`, `planning`, `data-analysis`, `operations`, `design`, or `other`. Choose it from the visible requested outcome, not from tool names. Leave it empty for every other session.
+- `assets_used`: `true` when the session invoked at least one reusable asset, as defined below;
+- `other_kind`: for a session with `code_change: false`, one of `research`, `writing`, `planning`, `data-analysis`, `operations`, `design`, or `other`, as defined below. Leave it empty for every other session.
+
+Source code is any file that changes how software runs or is built: application code, tests, configuration, infrastructure, schemas, migrations, build files, stylesheets, and markup. Documentation, notes, plans, and data files are not source code. A shell command that writes a source file, such as a heredoc, an in-place edit, or an applied patch, counts when the metadata shows the target file. Committing, merging, deploying, or running git alone does not.
+
+A reusable asset is a skill, command, MCP server, hook, automation, agent template, or evaluation harness that the person or their team installed, configured, or wrote. Tools that ship with the harness are not reusable assets: built-in tools, built-in subagent types, and the harness's own browser, preview, pull-request, and session tools. A session uses an asset only when the asset was invoked in that session, such as a skill or command called, a tool from that MCP server called, or an agent started from that template. A hook that runs automatically in every session does not make a session count.
+
+Choose `other_kind` from the visible requested outcome, not from tool names. When a session had several outcomes, choose the one that took most of the session:
+
+- `research`: finding out how something works or what is true, such as reading documentation, comparing options, or investigating a bug without changing code;
+- `writing`: prose for people, such as documentation, posts, messages, or specifications;
+- `planning`: deciding what to build or in what order, such as plans, task breakdowns, or architecture decisions;
+- `data-analysis`: querying or analyzing data to answer a question;
+- `operations`: running and shipping existing work, such as reviewing, merging, deploying, releasing, triaging issues, configuring services or accounts, or responding to incidents;
+- `design`: visual or interaction design without code changes;
+- `other`: only when none of the kinds above fits.
 
 Record permission metadata by source. Distinguish environment-inherited, user-selected, and unclear modes. Do not treat broad permissions as good or bad. Record elevated requests only by broad purpose and unambiguous outcome.
 
@@ -195,7 +209,7 @@ Each arc gets exactly one value on each axis:
 - `work_context`: `client`, `employer`, `personal`, `open-source`, or `unclear`
 - `confidence`: `high`, `medium`, or `low`
 
-Set `work_context: personal` only when the evidence shows the person chose the problem for themselves, outside client or employer work. A new repository or a greenfield system alone does not establish it. Use `open-source` for public projects maintained with others. Missing or ambiguous evidence is `unclear`.
+Use `employer` for work at a company the person works for, including a company or business they own, co-own, or run. Use `client` for work done for an outside organization. Set `work_context: personal` only when the evidence shows the person chose the problem for themselves, outside any business. A new repository or a greenfield system alone does not establish it. Use `open-source` for public projects maintained with others. Missing or ambiguous evidence is `unclear`.
 
 Set `reviewer_governor` only when repeated evidence shows review, approval, standards, or quality control beyond the person's own implementation.
 
@@ -334,7 +348,11 @@ Additional visible rules:
   equals `coding_sessions + other_sessions` from `work_mix`.
   `sessions_using_assets` counts those sessions with `assets_used: true`. Do not sum
   `reusable_assets[].active_sessions`, because one session can use several
-  assets. The fixed renderer labels the setup from the distinct assets. It
+  assets. Each `reusable_assets` row is one distinct asset, such as one skill,
+  one command, or one MCP server, never a category or a group of assets. List
+  an asset only when at least one session invoked it. An always-on hook the
+  person configured is the one exception: list it with `active_sessions: 0`.
+  The fixed renderer labels the setup from the distinct assets. It
   describes the setup, not skill. Do not rank a customized setup above a
   stock one in visible copy.
 - Set `profile_view.side_projects` to `null` unless at least one work arc has
@@ -787,6 +805,7 @@ Check every item:
 - [ ] Every work arc has `work_context`. `personal` rests on evidence that the person chose the problem, not on a new repository.
 - [ ] `work_mix` coding, other, and unclassified sessions add up to the interactive sessions, sessions without tool metadata are unclassified, and `other_kinds` adds up to the other sessions.
 - [ ] `reusable_asset_coverage.sessions_scanned` equals `coding_sessions + other_sessions`, and `sessions_using_assets` does not exceed it.
+- [ ] Each `reusable_assets` row is one distinct asset the person or their team set up. Harness built-ins are absent, and always-on hooks do not count toward `sessions_using_assets`.
 - [ ] `profile_view.side_projects` is `null` when no arc is personal. Otherwise it cites a personal arc's work-arc record and names no project, product, repository, or URL.
 - [ ] Every operating ratio has a source-compatible numerator and denominator. The model did not calculate or write the displayed percentage.
 - [ ] No visible section lists generic tools, badge cards, employers, or resume chronology.
@@ -801,8 +820,8 @@ Check every item:
       window ledger. Its total, shares, and daily rates reconcile to those rows.
 - [ ] If there is no overlap, `shared_window_sessions` is `[]` and
       `normalized_mix` is `null`. No ratio or partial mix is present.
-- [ ] When a mix is present, its limitation says that Overflow validates
-      payload consistency but does not authenticate counts against raw history.
+- [ ] No model-authored limitation repeats the renderer's note that Overflow
+      cannot authenticate counts against raw history.
 - [ ] Mix is labeled session-record share only and does not imply time, preference, quality, or completed work.
 - [ ] Cohort placement and curves are absent from the local JSON.
 - [ ] Rich legacy matching fields remain populated.

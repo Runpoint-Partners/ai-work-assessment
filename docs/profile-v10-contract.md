@@ -38,6 +38,17 @@ agent_practice
     limitations[]
 ```
 
+A reusable asset is one the person or their team installed, configured, or
+wrote. Harness built-ins don't count: built-in tools, built-in subagent types,
+and the harness's own browser, preview, pull-request, and session tools. Each
+`reusable_assets` row is one distinct asset (one skill, one command, one MCP
+server), never a category. A session uses an asset only when it invoked it. A
+hook that runs automatically in every session is listed with
+`active_sessions: 0` and never makes a session count. The Oct 13 pre-release
+runs needed this rule: without it, one model counted harness tools and
+reported asset use in 84% of sessions, while the other excluded them and
+reported 54% for the same history.
+
 The renderer derives the visible setup footprint. The model writes none of it:
 
 - distinct assets by kind, and how many the person created or adapted;
@@ -76,9 +87,15 @@ activity_analysis
 ```
 
 The classification is mechanical. A session counts as coding when its
-metadata ledger shows a file-edit or file-write call on source code. The
+metadata ledger shows a file-edit or file-write call on source code. Source
+code is any file that changes how software runs or is built, including tests,
+configuration, infrastructure, schemas, and stylesheets. Documentation, notes,
+plans, and data files are not. A shell write counts when the metadata shows the
+target file. Committing, merging, or deploying alone does not. The
 collector counts sessions, and the model never estimates a share.
-`other_kinds` takes judgment, so the model may assign those tags. The counts
+`other_kinds` takes judgment, so the model may assign those tags. The prompt
+defines each one. `operations` covers reviewing, merging, deploying,
+releasing, triaging, and configuring services, and `other` is a last resort. The counts
 still come from per-session labels, not a guess.
 
 Validation:
@@ -102,7 +119,9 @@ Every work arc gets one more axis:
 
 - `work_context`: `client`, `employer`, `personal`, `open-source`, or `unclear`
 
-`personal` requires evidence that the person chose the problem for themselves.
+`employer` includes a business the person owns, co-owns, or runs. `client` is
+work for an outside organization. `personal` requires evidence that the person
+chose the problem for themselves, outside any business.
 A greenfield repository alone does not count. Missing or ambiguous evidence is
 `unclear`.
 
@@ -181,6 +200,5 @@ These are site features, not contract fields. They ship separately:
 ## Open questions
 
 - Band thresholds: are 0, 1 to 3, 4 to 10, and 11+ distinct assets the right cut points?
-- Should `work_context: client` and `employer` stay separate, or merge into `paid`?
 - Should the side-projects summary appear when only `open-source` arcs exist,
   or only for `personal`?
