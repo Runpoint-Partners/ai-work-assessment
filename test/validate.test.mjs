@@ -17,7 +17,8 @@ import { freshness } from "../bin/cli.mjs";
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "profile-v6.html");
 const fixtureHtml = readFileSync(FIXTURE, "utf8");
-const CURRENT_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "profile-v9.sample.json");
+const CURRENT_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "profile-v10.sample.json");
+const V9_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "profile-v9.sample.json");
 
 // Each test gets its own copy: sanitizeProfile mutates in place.
 function loadFixture() {
@@ -87,9 +88,30 @@ test("accepts the current matching-profile fixture", () => {
   assert.doesNotThrow(() => validateRawProfileV9(profile));
   sanitizeProfile(profile);
   assert.doesNotThrow(() => validateProfileV9(profile));
-  assert.equal(profile.schema_version, 9);
-  assert.equal(profile.prompt_version, 8);
+  assert.equal(profile.schema_version, 10);
+  assert.equal(profile.prompt_version, 9);
   assert.equal(profile.profile_view.agent_practice.workflow.length, 4);
+  assert.equal(profile.activity_analysis.work_mix.coding_sessions, 138);
+  assert.equal(profile.agent_practice.reusable_asset_coverage.sessions_scanned, 188);
+  assert.ok(profile.profile_view.side_projects);
+});
+
+test("keeps accepting schema-v9 profiles under their original rules", () => {
+  const profile = JSON.parse(readFileSync(V9_FIXTURE, "utf8"));
+  assert.doesNotThrow(() => validateRawProfileV9(profile));
+  sanitizeProfile(profile);
+  assert.doesNotThrow(() => validateProfileV9(profile));
+  assert.equal(profile.schema_version, 9);
+  assert.ok(!("work_mix" in profile.activity_analysis) && !("side_projects" in profile.profile_view));
+});
+
+test("rejects coding and other-work sessions without tool metadata", () => {
+  const profile = JSON.parse(readFileSync(CURRENT_FIXTURE, "utf8"));
+  Object.assign(profile.activity_analysis.work_mix, { coding_sessions: 570, other_sessions: 0, unclassified_sessions: 0, other_kinds: [] });
+  profile.agent_practice.reusable_asset_coverage.sessions_scanned = 570;
+  validateRawProfileV9(profile);
+  sanitizeProfile(profile);
+  assert.throws(() => validateProfileV9(profile), (error) => error instanceof ProfileError && error.code === "PROFILE_V10_WORK_MIX_INVALID");
 });
 
 test("rejects a profile carrying a live credential", async (t) => {

@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = join(ROOT, "bin", "cli.mjs");
 const FIXTURE = join(ROOT, "fixtures", "profile-v6.html");
-const CURRENT_FIXTURE = join(ROOT, "fixtures", "profile-v9.sample.json");
+const CURRENT_FIXTURE = join(ROOT, "fixtures", "profile-v10.sample.json");
+const V9_FIXTURE = join(ROOT, "fixtures", "profile-v9.sample.json");
 
 function run(args, options = {}) {
   return execFileSync(process.execPath, [CLI, ...args], { encoding: "utf8", ...options });
@@ -110,6 +111,9 @@ test("current schema renders the concise standalone matching profile", () => {
     "Career &amp; industries",
     "04 / Subject matter",
     "Matching decision",
+    "Coding and other work",
+    "<h3>Setup</h3>",
+    "<h3>Side projects</h3>",
   ]) assert.ok(html.includes(heading), `missing current heading: ${heading}`);
   assert.match(html, /AI Work Assessment \/ Matching profile/);
   assert.doesNotMatch(html, /overflowbuilders\.com|fetch\s*\(/i);
@@ -118,19 +122,31 @@ test("current schema renders the concise standalone matching profile", () => {
 
 test("current schema validation reports matching fields", () => {
   const stdout = run(["validate", CURRENT_FIXTURE]);
-  assert.match(stdout, /helper release\s+v8\.0\.0/);
-  assert.match(stdout, /assessment prompt\s+v8/);
-  assert.match(stdout, /profile schema\s+v9/);
+  assert.match(stdout, /helper release\s+v9\.0\.0/);
+  assert.match(stdout, /assessment prompt\s+v9/);
+  assert.match(stdout, /profile schema\s+v10/);
   assert.match(stdout, /visible industries\s+4/);
   assert.match(stdout, /subject areas\s+4/);
   assert.match(stdout, /shared-window mix\s+claude 36\.5% · codex 63\.5%/);
-  assert.match(stdout, /Valid: the profile satisfies its schema-v9 rules\./);
+  assert.match(stdout, /work mix\s+coding 73\.4% · other 26\.6% \(188 classified, 382 unclassified\)/);
+  assert.match(stdout, /reusable assets\s+3 listed · used in 61 of 188 sessions/);
+  assert.match(stdout, /side projects\s+present/);
+  assert.match(stdout, /Valid: the profile satisfies its schema-v10 rules\./);
+});
+
+test("schema-v9 profiles still validate and render", () => {
+  assert.match(run(["validate", V9_FIXTURE]), /Valid: the profile satisfies its schema-v9 rules\./);
+  const outPath = join(mkdtempSync(join(tmpdir(), "awa-v9-compat-")), "profile.html");
+  run(["render", V9_FIXTURE, "--out", outPath]);
+  const html = readFileSync(outPath, "utf8");
+  assert.ok(html.includes("Agent operating profile"));
+  assert.doesNotMatch(html, /Coding and other work|<h3>Side projects<\/h3>/);
 });
 
 test("validate prints a field-level report", () => {
   const stdout = run(["validate", FIXTURE]);
   assert.match(stdout, /name\s+Riley Okafor/);
-  assert.match(stdout, /helper release\s+v8\.0\.0/);
+  assert.match(stdout, /helper release\s+v9\.0\.0/);
   assert.match(stdout, /assessment prompt\s+v6/);
   assert.match(stdout, /profile schema\s+v8/);
   assert.match(stdout, /badge map complete\s+yes \(14\/14\)/);

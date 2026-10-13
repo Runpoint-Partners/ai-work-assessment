@@ -1,6 +1,6 @@
 {
   "name": "ai-work-assessment",
-  "version": "8.0.0",
+  "version": "9.0.0",
   "description": "An agent-run, evidence-based matching profile built from local AI work, GitHub, and optional career context.",
   "license": "MIT",
   "type": "module",

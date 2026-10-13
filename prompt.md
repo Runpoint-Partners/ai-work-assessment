@@ -1,4 +1,4 @@
-# Overflow AI Work Assessment v8
+# Overflow AI Work Assessment v9
 
 Build one concise, evidence-based work profile for the person who runs this prompt. Use only the source families selected for this run:
 
@@ -15,7 +15,7 @@ cohort statistics after submission. The fixed Overflow renderer creates the
 review page. Do not write HTML, CSS, JavaScript, SVG, charts, upload forms, or
 cohort curves.
 
-The output contract is profile schema 9 and prompt version 8.
+The output contract is profile schema 10 and prompt version 9.
 
 ## Start with a short disclosure
 
@@ -60,13 +60,13 @@ Do not infer a release from the existence of a session. Use `implemented`, `work
 8. Do not assign an overall score, rank, percentile, or cohort placement. Cohort curves and comparisons are server-owned after submission.
 9. Preserve negative evidence and uncertainty. An omitted source is a user choice, not evidence of missing ability.
 10. Abstract client, employer, project, product, colleague, repository, and
-organization names during extraction. Schema 9 keeps only generalized LinkedIn
+organization names during extraction. Schema 10 keeps only generalized LinkedIn
 synthesis. It must not contain a LinkedIn profile dump, employer or organization
 names, job titles, profile URLs, contact details, raw career descriptions, or a
 career timeline. Only the explicit public identity fields `name` and an optional
 server-issued `slug` can identify the profile owner. Never store credentials,
 tokens, private paths or URLs, raw prompts, transcript excerpts, or file contents
-in the schema-9 JSON.
+in the schema-10 JSON.
 11. Do not inspect hidden reasoning, system messages, developer messages, injected instructions, or private chain-of-thought. Use visible conversational behavior only.
 12. Do not repeat a visible claim. Each conclusion gets one home in `profile_view`.
 13. Every visible claim must cite one or more `evidence_index` IDs.
@@ -136,7 +136,7 @@ and role framing. It cannot prove implementation quality or override
 contradictory observed work. Use the page only as temporary input. Convert useful
 facts into generalized, source-labeled industry and subject-matter synthesis.
 Discard names, organizations, titles, URLs, dates tied to named roles, and raw
-descriptions before you build schema-9 JSON. Do not create a `career.timeline`.
+descriptions before you build schema-10 JSON. Do not create a `career.timeline`.
 
 ## 4. Distill sessions locally
 
@@ -153,6 +153,12 @@ For each session, retain:
 Exclude tool output, command output, file contents, system reminders, environment blocks, injected instructions, hidden analysis, and private reasoning.
 
 Create a separate metadata-only agent-operations ledger. Store only source harness, session ID, timestamp, broad tool category, safe function name, and explicit use of reusable skills, commands, MCPs, hooks, automations, agent templates, or evaluation harnesses. Keep scheduled runs, subagents, and background workers separate from interactive work.
+
+For each interactive session, add three metadata-only fields to the ledger:
+
+- `code_change`: `true` when the session made at least one file-edit or file-write call on source code, `false` when it has tool metadata and no such call, and `null` when it has no tool metadata;
+- `assets_used`: `true` when the session invoked at least one listed reusable skill, command, MCP, hook, automation, agent template, or evaluation harness;
+- `other_kind`: for a session with `code_change: false`, one of `research`, `writing`, `planning`, `data-analysis`, `operations`, `design`, or `other`. Choose it from the visible requested outcome, not from tool names. Leave it empty for every other session.
 
 Record permission metadata by source. Distinguish environment-inherited, user-selected, and unclear modes. Do not treat broad permissions as good or bad. Record elevated requests only by broad purpose and unambiguous outcome.
 
@@ -186,7 +192,10 @@ Each arc gets exactly one value on each axis:
 - `responsibility`: `directed-task`, `scoped-contributor`, `workstream-owner`, or `system-owner`
 - `authorship`: `direct`, `directed-reviewed`, `mixed`, or `unclear`
 - `verification_mode`: `independent`, `self-check`, or `unclear`
+- `work_context`: `client`, `employer`, `personal`, `open-source`, or `unclear`
 - `confidence`: `high`, `medium`, or `low`
+
+Set `work_context: personal` only when the evidence shows the person chose the problem for themselves, outside client or employer work. A new repository or a greenfield system alone does not establish it. Use `open-source` for public projects maintained with others. Missing or ambiguous evidence is `unclear`.
 
 Set `reviewer_governor` only when repeated evidence shows review, approval, standards, or quality control beyond the person's own implementation.
 
@@ -267,6 +276,7 @@ Use these hard budgets:
 | Subject matter | 3 to 5 | summary 26 words; evidence label 10 words |
 | Matching | exactly 3 conclusions | each summary 34 words |
 | Limits | 2 to 4 | each summary 24 words |
+| Side projects | 0 or 1 | summary 30 words |
 
 Additional visible rules:
 
@@ -310,9 +320,31 @@ Additional visible rules:
   Overflow cannot authenticate the session counts against raw history because
   raw sessions are not uploaded. The fixed renderer states this limit beside
   the mix. Do not repeat it in a model-authored limitation.
+- `activity_analysis.work_mix` is the deterministic ledger for coding and
+  other work. Count it from the per-session `code_change` and `other_kind`
+  fields: `coding_sessions` are `true`, `other_sessions` are `false`, and
+  `unclassified_sessions` are `null`. The three counts add up to
+  `activity_analysis.coverage.interactive_sessions`. A session without tool
+  metadata is always unclassified, so `coding_sessions + other_sessions`
+  cannot exceed the sessions with tool metadata. `other_kinds` lists each
+  kind once and adds up to `other_sessions`. The fixed renderer shows the
+  shares. Do not write a coding share in visible copy.
+- `agent_practice.reusable_asset_coverage` counts sessions that used any
+  reusable asset across the same classified sessions. `sessions_scanned`
+  equals `coding_sessions + other_sessions` from `work_mix`.
+  `sessions_using_assets` counts those sessions with `assets_used: true`. Do not sum
+  `reusable_assets[].active_sessions`, because one session can use several
+  assets. The fixed renderer labels the setup from the distinct assets. It
+  describes the setup, not skill. Do not rank a customized setup above a
+  stock one in visible copy.
+- Set `profile_view.side_projects` to `null` unless at least one work arc has
+  `work_context: personal`. When a personal arc exists, write one claim about
+  what that work shows, such as finishing, care for the user-facing result, or
+  taking it to live use. Cite a `work-arc` evidence record whose `arc_ids`
+  include a personal arc. Never name a project, product, repository, or URL.
 - Cohort metrics, percentiles, distribution curves, and comparison sample size do not belong in this JSON. The server adds them after submission.
 
-## 8. Produce profile schema 9 JSON
+## 8. Produce profile schema 10 JSON
 
 Return one valid JSON object. Do not wrap it in Markdown. Do not add commentary before or after it.
 
@@ -320,8 +352,8 @@ Required top-level structure:
 
 ```json
 {
-  "schema_version": 9,
-  "prompt_version": 8,
+  "schema_version": 10,
+  "prompt_version": 9,
   "name": "",
   "focus": "",
   "headline": "",
@@ -352,7 +384,7 @@ Keep the established schema-v8 fields needed for server matching. In particular,
 preserve rich `skills`, `work_arcs`, `activity_analysis`, `agent_practice`, and
 `domain_stamps` data. Preserve `github`, `working_style`,
 `interaction_profile`, `project_role`, `project_match`, and `limits` when
-evidence exists. Do not include the legacy `career` object in schema 9. Omit
+evidence exists. Do not include the legacy `career` object in schema 10. Omit
 empty optional window keys. Set `focus` and `headline` to the same thesis for
 backward compatibility.
 
@@ -429,6 +461,15 @@ local extraction and aggregation scripts. Do not estimate missing counts.
     },
     "context_pressure": { "token_limit_events": 0, "affected_sessions": 0, "compaction_events": 0, "recovered_sessions": 0, "repeated_failure_sessions": 0, "limitations": [] },
     "model_usage": [ { "source": "codex|claude|cowork|other", "model": "", "sessions": 0, "first_observed": "", "last_observed": "" } ],
+    "work_mix": {
+      "method": "code-change tool calls per interactive session",
+      "interactive_sessions": 0,
+      "coding_sessions": 0,
+      "other_sessions": 0,
+      "unclassified_sessions": 0,
+      "other_kinds": [ { "tag": "research|writing|planning|data-analysis|operations|design|other", "sessions": 0 } ],
+      "limitations": []
+    },
     "trend_status": "supported|partial|not-supported",
     "comparability_note": "",
     "evolution_summary": ""
@@ -480,6 +521,7 @@ local extraction and aggregation scripts. Do not estimate missing counts.
       "responsibility": "directed-task|scoped-contributor|workstream-owner|system-owner",
       "authorship": "direct|directed-reviewed|mixed|unclear",
       "verification_mode": "independent|self-check|unclear",
+      "work_context": "client|employer|personal|open-source|unclear",
       "reviewer_governor": false,
       "confidence": "high|medium|low",
       "evidence": [],
@@ -499,6 +541,7 @@ local extraction and aggregation scripts. Do not estimate missing counts.
     "reusable_assets": [
       { "tag": "", "label": "", "kind": "skill|command|mcp|hook|automation|agent-template|eval", "relationship": "used|adapted|created", "active_sessions": 0, "observed_uses": 0, "sources": ["codex|claude|cowork|other"], "evidence": "" }
     ],
+    "reusable_asset_coverage": { "sessions_scanned": 0, "sessions_using_assets": 0, "limitations": [] },
     "permission_practice": { "coverage": [], "modes": [], "elevated_requests": [], "finding": "", "guardrail_pattern": "", "limitations": [] },
     "interaction_metadata": {},
     "limitations": []
@@ -520,7 +563,7 @@ Omit `collection_summary` for a normal one-environment run. The multi-environmen
 prompt supplies it. Keep lower-confidence and exhaustive observations in these
 legacy fields even when they do not appear in `profile_view`.
 
-Use this schema-v9 extension exactly:
+Use this schema-v10 extension exactly:
 
 ```json
 {
@@ -599,7 +642,8 @@ Use this schema-v9 extension exactly:
     },
     "limits": [
       { "summary": "", "evidence_ids": ["ev-013"] }
-    ]
+    ],
+    "side_projects": { "summary": "", "evidence_ids": ["ev-014"] }
   },
   "evidence_index": [
     {
@@ -687,11 +731,13 @@ The fixed renderer can show up to four hiring-relevant operating ratios. The mod
 - **Owned into real use:** work arcs whose `delivery_state` is `live-use` or `ongoing-operation` and whose `responsibility` is `workstream-owner` or `system-owner`, divided by all qualifying work arcs.
 - **Independent-verification rate:** work arcs with `verification_mode: independent`, divided by all work arcs that have `independent`, `self-check`, or `unclear` classification. `Unclear` remains in the denominator so missing evidence cannot inflate the rate.
 - **Review governance:** if verification mode is unavailable, the renderer may show `reviewer_governor` arcs divided by qualifying work arcs. The label must state that this is review governance, not independent verification.
-- **Work mix:** renderer-owned counts of `primary_surface` and `change_type` across qualifying work arcs. These are distributions of retained arcs, not estimates of time spent.
+- **Work-arc mix:** renderer-owned counts of `primary_surface` and `change_type` across qualifying work arcs. These are distributions of retained arcs, not estimates of time spent. It is separate from the session-level `activity_analysis.work_mix`.
 - **Recovery:** show a recovery rate only when `context_pressure.recovered_sessions` and the matching failure-session denominator are collector-derived from the same scanned window. Otherwise keep recovery qualitative.
 - **Reusable controls:** show a reuse rate only when one non-overlapping session-level category supplies `active_sessions` and same-source `tool_call_coverage` supplies `sessions_scanned`. Never sum overlapping reusable assets.
 
 The page must omit an unsupported ratio. It must not substitute a qualitative score, badge, or invented denominator.
+
+When no work arc is personal, use `"side_projects": null`. Do not omit the key or send `{}`.
 
 Allowed `source_field` roots for visible agent-practice statistics are:
 
@@ -701,6 +747,8 @@ Allowed `source_field` roots for visible agent-practice statistics are:
 - `/agent_practice/tool_call_coverage/`
 - `/agent_practice/tool_categories/`
 - `/agent_practice/reusable_assets/`
+- `/agent_practice/reusable_asset_coverage/`
+- `/activity_analysis/work_mix/`
 - `/cadence/`
 
 The pointer must resolve to a finite, non-negative number. Array indices are
@@ -718,14 +766,14 @@ The legacy top-level `domain_stamps` keeps classified arc counts plus structured
 
 Check every item:
 
-- [ ] Output is valid JSON with `schema_version: 9` and `prompt_version: 8`.
+- [ ] Output is valid JSON with `schema_version: 10` and `prompt_version: 9`.
 - [ ] Every visible narrative claim cites existing `evidence_index` IDs.
 - [ ] Every evidence ID is opaque, matches `^ev-[0-9]{3,12}$`, and contains
       no semantic source, person, employer, project, capability, or date label.
 - [ ] Every value in a visible `sources` array is backed by a cited evidence
       record whose `source` matches that value.
 - [ ] Evidence IDs contain no raw prompts, names, private URLs, paths, or credentials.
-- [ ] The schema-9 payload contains no raw LinkedIn profile data, employer or
+- [ ] The schema-10 payload contains no raw LinkedIn profile data, employer or
       organization names, job titles, profile URLs, raw career descriptions, or
       career timeline.
 - [ ] Generalized LinkedIn-derived industry and subject-matter synthesis remains
@@ -736,6 +784,10 @@ Check every item:
       `source_field`, and exactly matches that structured field's value.
 - [ ] Agent practice describes role, decomposition, parallelism, verification, recovery, and reusable controls when supported.
 - [ ] Every work arc has `verification_mode`; independent means a separate retained check, self-check means the implementation pass checked itself, and unclear means the evidence does not establish either.
+- [ ] Every work arc has `work_context`. `personal` rests on evidence that the person chose the problem, not on a new repository.
+- [ ] `work_mix` coding, other, and unclassified sessions add up to the interactive sessions, sessions without tool metadata are unclassified, and `other_kinds` adds up to the other sessions.
+- [ ] `reusable_asset_coverage.sessions_scanned` equals `coding_sessions + other_sessions`, and `sessions_using_assets` does not exceed it.
+- [ ] `profile_view.side_projects` is `null` when no arc is personal. Otherwise it cites a personal arc's work-arc record and names no project, product, repository, or URL.
 - [ ] Every operating ratio has a source-compatible numerator and denominator. The model did not calculate or write the displayed percentage.
 - [ ] No visible section lists generic tools, badge cards, employers, or resume chronology.
 - [ ] No visible claim appears twice or as a close paraphrase.
@@ -779,7 +831,7 @@ Open the rendered HTML and inspect desktop and mobile layouts. If validation or 
 The fixed page contains Overflow's reviewed submission control. It makes no
 request until the user completes the form, chooses visibility, consents, and
 clicks the final upload button. Do not prefill the form or trigger submission.
-Only the structured payload is sent. Schema 9 contains generalized,
+Only the structured payload is sent. Schema 10 contains generalized,
 source-labeled LinkedIn synthesis and no raw LinkedIn profile data. The server
 calculates compatible cohort comparisons from stored assessment data.
 

@@ -176,7 +176,23 @@ function currentFieldReport(profile) {
     `matching capabilities ${count(profile.matching_index?.capabilities)}`,
     `agent statistics      ${count(profile.profile_view?.agent_practice?.statistics)}`,
     `shared-window mix     ${sourceMix}`,
+    ...schema10Report(profile),
   ].join("\n");
+}
+
+// Schema 10: coding and other work across the sessions with tool records, and
+// how many reusable assets ran across those same sessions.
+function schema10Report(profile) {
+  if (Number(profile?.schema_version) < 10) return [];
+  const mix = profile.activity_analysis?.work_mix || {};
+  const classified = (Number(mix.coding_sessions) || 0) + (Number(mix.other_sessions) || 0);
+  const share = (part) => `${Math.round((Number(part) || 0) / classified * 1000) / 10}%`;
+  const assets = profile.agent_practice?.reusable_asset_coverage || {};
+  return [
+    `work mix              ${classified ? `coding ${share(mix.coding_sessions)} · other ${share(mix.other_sessions)} (${classified} classified, ${Number(mix.unclassified_sessions) || 0} unclassified)` : "no classified sessions"}`,
+    `reusable assets       ${count(profile.agent_practice?.reusable_assets)} listed · used in ${Number(assets.sessions_using_assets) || 0} of ${Number(assets.sessions_scanned) || 0} sessions`,
+    `side projects         ${profile.profile_view?.side_projects ? "present" : "none"}`,
+  ];
 }
 
 function main() {
