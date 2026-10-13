@@ -1,10 +1,11 @@
-# Overflow profile schema 10 contract (draft)
+# AI Work Assessment v9: profile schema 10 contract (draft)
 
 Draft for review. Nothing here ships until the release sequence in
 `docs/assessment-release-process.md` runs. Schema 10 extends schema 9 and
 changes nothing in it. Read `docs/profile-v9-contract.md` first.
 
-Versions at release: assessment prompt 9, profile schema 10, helper 9.0.0.
+The release is AI Work Assessment v9. It writes profile schema 10, the JSON format this
+document defines, and ships with open-source helper 9.0.0.
 `minimumCompatiblePromptVersion` stays 6, so schema 9 profiles stay readable
 under their original rules.
 
