@@ -345,6 +345,9 @@ Additional visible rules:
   source counts cannot differ. Calculate `calendar_days`, `total_sessions`,
   `share`, and `sessions_per_calendar_day` from those two rows. It measures
   session-record share only. Never estimate or rewrite a count.
+- If only one of Claude and Codex has retained interactive sessions, the
+  windows cannot overlap. Use the unavailable shape below, and do not add a
+  window, coverage row, or placeholder for the missing harness.
 - If the retained Claude and Codex windows do not overlap, set
   `activity_analysis.coverage.shared_window_sessions` to `[]` and set
   `profile_view.agent_footprint.normalized_mix` to `null`. This is the only

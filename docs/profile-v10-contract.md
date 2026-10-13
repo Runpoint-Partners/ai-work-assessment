@@ -191,6 +191,16 @@ These are site features, not contract fields. They ship separately:
 - Schema 10 requires every field above. Use empty ledgers or `null` where
   the evidence is missing, never zero-filled placeholders. The rule matches
   the schema 9 normalized mix.
+- A person who used only one of Claude and Codex has no shared window. They
+  use the same null mix and empty ledger as non-overlapping windows. Both
+  validators accept that only when the missing harness has no source window
+  and no scanned sessions anywhere in the profile. Before this fix, schema 9
+  rejected every single-harness profile. The Oct 13 multi-environment test
+  run found it.
+- Multi-environment bundles carry each session's assets as
+  `observations.assets` (kind, abstract label, relationship), so the report can
+  list distinct assets. Automated sessions stay out of bundles; each bundle
+  records the count as an `automated-sessions:` line in `collection_limits`.
 - Older readers ignore the new fields. `focus` and `headline` still mirror the
   hero thesis.
 
@@ -205,7 +215,7 @@ These are site features, not contract fields. They ship separately:
 5. Contract bump to prompt 9, schema 10, helper 9.0.0, with freshness rules
    that keep schema 9 compatible. Then the prompt (`public/apply/prompt.md`),
    collector (`public/apply/collect.md`), and report (`public/apply/report.md`):
-   the per-session `code_change`, `assets_used`, and `other_kind` fields, the
+   the per-session `code_change`, `assets_used`, `assets`, and `other_kind` fields, the
    two ledgers, `work_context`, and `side_projects`, with budgets. Multi-environment
    bundles carry the per-session fields inside `observations`, so the bundle
    schema stays at version 1.

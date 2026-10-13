@@ -1266,6 +1266,7 @@ export function validateProfileV9(profile) {
     view.agent_footprint?.normalized_mix,
     profile.activity_analysis?.coverage?.source_windows,
     profile.activity_analysis?.coverage?.shared_window_sessions,
+    profile.agent_practice?.tool_call_coverage,
   );
   validateOperatingRatioInputs(profile);
   if (v10) validateProfileV10Ledgers(profile);
@@ -1441,15 +1442,23 @@ function validateOperatingRatioInputs(profile) {
   }
 }
 
-function validateNormalizedMix(mix, sourceWindows = [], sharedWindowSessions = []) {
+function validateNormalizedMix(mix, sourceWindows = [], sharedWindowSessions = [], toolCallCoverage = []) {
   if (mix === null) {
     if (!Array.isArray(sharedWindowSessions) || sharedWindowSessions.length !== 0) {
       throw new ProfileError("An unavailable normalized mix requires an empty shared-window ledger.", 422, "PROFILE_V9_MIX_LEDGER_INVALID");
     }
     const observedBySource = PROFILE_MIX_SOURCES.map((source) => (Array.isArray(sourceWindows) ? sourceWindows : [])
       .filter((item) => item?.source === source && isIsoDate(item?.from) && isIsoDate(item?.to)));
-    if (observedBySource.some((items) => !items.length)) {
-      throw new ProfileError("An unavailable normalized mix requires recorded Claude and Codex windows.", 422, "PROFILE_V9_MIX_WINDOW_INVALID");
+    // A harness the person never used has no window to overlap. It must be
+    // absent everywhere, so a source can't be dropped just to skip the mix.
+    const missing = PROFILE_MIX_SOURCES.filter((source, index) => !observedBySource[index].length);
+    if (missing.length) {
+      const scanned = (source) => (Array.isArray(toolCallCoverage) ? toolCallCoverage : [])
+        .some((item) => item?.source === source && Number.isFinite(item?.sessions_scanned) && item.sessions_scanned > 0);
+      if (missing.some(scanned)) {
+        throw new ProfileError("An unavailable normalized mix requires recorded Claude and Codex windows.", 422, "PROFILE_V9_MIX_WINDOW_INVALID");
+      }
+      return;
     }
     const exactFrom = observedBySource.map((items) => items.map((item) => item.from).sort()[0]).sort().at(-1);
     const exactTo = observedBySource.map((items) => items.map((item) => item.to).sort().at(-1)).sort()[0];
