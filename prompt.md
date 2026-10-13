@@ -160,9 +160,9 @@ For each interactive session, add three metadata-only fields to the ledger:
 - `assets_used`: `true` when the session invoked at least one reusable asset, as defined below;
 - `other_kind`: for a session with `code_change: false`, one of `research`, `writing`, `planning`, `data-analysis`, `operations`, `design`, or `other`, as defined below. Leave it empty for every other session.
 
-Source code is any file that changes how software runs or is built: application code, tests, configuration, infrastructure, schemas, migrations, build files, stylesheets, and markup. Documentation, notes, plans, and data files are not source code. A shell command that writes a source file, such as a heredoc, an in-place edit, or an applied patch, counts when the metadata shows the target file. Committing, merging, deploying, or running git alone does not.
+Source code is any file that changes how software runs or is built: application code, tests, configuration, infrastructure, schemas, migrations, build files, stylesheets, and markup. Documentation, notes, plans, and data files are not source code. Configuration files such as package manifests and theme or schema settings count; JSON, CSV, or YAML that holds content or records does not. A shell command that writes a source file, such as a heredoc, an in-place edit, an applied patch, or an inline interpreter script that writes a file, counts when the metadata shows the target file. Committing, merging, deploying, or running git alone does not.
 
-A reusable asset is a skill, command, MCP server, hook, automation, agent template, or evaluation harness that the person or their team installed, configured, or wrote. Tools that ship with the harness are not reusable assets: built-in tools, built-in subagent types, and the harness's own browser, preview, pull-request, and session tools. A session uses an asset only when the asset was invoked in that session, such as a skill or command called, a tool from that MCP server called, or an agent started from that template. A hook that runs automatically in every session does not make a session count.
+A reusable asset is a skill, command, MCP server or connector, hook, automation, agent template, or evaluation harness that someone chose to add to this person's setup: one they wrote, one their team shares, a plugin or skill they installed from a marketplace, or a connector or MCP server they connected. Anything present for every user without a choice is a built-in and never counts: the harness's own tools and subagent types, its browser, preview, pull-request, and session tools, and the skills and extensions bundled with the app. Invoking a named skill, command, or MCP server that is not a built-in is enough evidence; do not require proof of who installed it. One asset reached by different routes, such as a slash command and a skill call, is one asset. A session uses an asset only when the asset was invoked in that session, such as a skill or command called, a tool from that MCP server called, or an agent started from that template. A hook that runs automatically in every session does not make a session count.
 
 Choose `other_kind` from the visible requested outcome, not from tool names. When a session had several outcomes, choose the one that took most of the session:
 
@@ -170,9 +170,9 @@ Choose `other_kind` from the visible requested outcome, not from tool names. Whe
 - `writing`: prose for people, such as documentation, posts, messages, or specifications;
 - `planning`: deciding what to build or in what order, such as plans, task breakdowns, or architecture decisions;
 - `data-analysis`: querying or analyzing data to answer a question;
-- `operations`: running and shipping existing work, such as reviewing, merging, deploying, releasing, triaging issues, configuring services or accounts, or responding to incidents;
+- `operations`: running and shipping existing work, such as reviewing, merging, deploying, releasing, updating site content or data, triaging issues, configuring services or accounts, or responding to incidents;
 - `design`: visual or interaction design without code changes;
-- `other`: only when none of the kinds above fits.
+- `other`: only when none of the kinds above fits. A coding request that ended without a code change takes the kind of work that did happen, usually `research` or `planning`.
 
 Record permission metadata by source. Distinguish environment-inherited, user-selected, and unclear modes. Do not treat broad permissions as good or bad. Record elevated requests only by broad purpose and unambiguous outcome.
 
@@ -805,7 +805,7 @@ Check every item:
 - [ ] Every work arc has `work_context`. `personal` rests on evidence that the person chose the problem, not on a new repository.
 - [ ] `work_mix` coding, other, and unclassified sessions add up to the interactive sessions, sessions without tool metadata are unclassified, and `other_kinds` adds up to the other sessions.
 - [ ] `reusable_asset_coverage.sessions_scanned` equals `coding_sessions + other_sessions`, and `sessions_using_assets` does not exceed it.
-- [ ] Each `reusable_assets` row is one distinct asset the person or their team set up. Harness built-ins are absent, and always-on hooks do not count toward `sessions_using_assets`.
+- [ ] Each `reusable_assets` row is one distinct asset someone chose to add: written, shared by the team, installed, or connected. Built-ins bundled with the harness or app are absent, and always-on hooks do not count toward `sessions_using_assets`.
 - [ ] `profile_view.side_projects` is `null` when no arc is personal. Otherwise it cites a personal arc's work-arc record and names no project, product, repository, or URL.
 - [ ] Every operating ratio has a source-compatible numerator and denominator. The model did not calculate or write the displayed percentage.
 - [ ] No visible section lists generic tools, badge cards, employers, or resume chronology.

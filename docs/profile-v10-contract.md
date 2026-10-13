@@ -38,16 +38,22 @@ agent_practice
     limitations[]
 ```
 
-A reusable asset is one the person or their team installed, configured, or
-wrote. Harness built-ins don't count: built-in tools, built-in subagent types,
-and the harness's own browser, preview, pull-request, and session tools. Each
+A reusable asset is one someone chose to add to the person's setup: written
+by them, shared by their team, installed from a marketplace, or connected as an
+MCP server or connector. Anything present for every user without a choice is a
+built-in and doesn't count: the harness's own tools and subagent types, its
+browser, preview, pull-request, and session tools, and skills and extensions
+bundled with the app. Invoking a named, non-built-in asset is enough evidence. Each
 `reusable_assets` row is one distinct asset (one skill, one command, one MCP
 server), never a category. A session uses an asset only when it invoked it. A
 hook that runs automatically in every session is listed with
 `active_sessions: 0` and never makes a session count. The Oct 13 pre-release
 runs needed this rule: without it, one model counted harness tools and
 reported asset use in 84% of sessions, while the other excluded them and
-reported 54% for the same history.
+reported 54% for the same history. The second round split again, 47% vs 11%:
+one model counted installed plugins and connected services, the other demanded
+proof of who installed each asset and kept only five skills. The "chose to
+add" boundary and the evidence rule above settle both cases.
 
 The renderer derives the visible setup footprint. The model writes none of it:
 
