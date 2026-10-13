@@ -154,6 +154,14 @@ Exclude tool output, command output, file contents, system reminders, environmen
 
 Create a separate metadata-only agent-operations ledger. Store only source harness, session ID, timestamp, broad tool category, safe function name, and explicit use of reusable skills, commands, MCPs, hooks, automations, agent templates, or evaluation harnesses. Keep scheduled runs, subagents, and background workers separate from interactive work.
 
+Tell interactive sessions from automated ones by the session's own metadata, not by its content:
+
+- Claude Code and Cowork: a session is interactive when its `entrypoint` is an app or terminal entry, such as `claude-desktop`, `cli`, or an editor extension. An `sdk-*` entrypoint, such as `sdk-py` or `sdk-ts`, is a program driving the agent, such as an automated review, and counts as a scheduled run.
+- Codex: read `originator` and `source` in the first `session_meta` record. `codex-tui`, `codex_work_desktop`, and editor originators are interactive. `codex_exec` is a scripted run. An originator naming another agent, such as `Claude Code`, means that agent launched the session, and a `source` with a `subagent` key is a worker. Count all three as scheduled runs.
+- When a session has no such field, treat it as interactive only if it shows the person typing requests over more than one turn.
+
+Scheduled runs never enter `work_mix`, `reusable_asset_coverage`, or `interactive_sessions`. When another agent routinely launches one harness, such as review runs started from Claude Code, describe that as delegation in agent practice rather than as interactive use.
+
 For each interactive session, add three metadata-only fields to the ledger:
 
 - `code_change`: `true` when the session made at least one file-edit or file-write call on source code, `false` when it has tool metadata and no such call, and `null` when it has no tool metadata;

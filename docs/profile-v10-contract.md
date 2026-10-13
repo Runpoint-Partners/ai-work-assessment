@@ -59,7 +59,12 @@ metadata as `mcp__<uuid>__<tool>`, which one model couldn't place. The prompt
 now gives the metadata patterns for MCP, skill, command, and template calls in
 each harness, the prefixes of the app's own servers, and the rule that an
 opaque-ID server is a connected service. Subagent writes count toward the
-session that launched them.
+session that launched them. The fourth round matched on assets (40 vs 44
+distinct, both Extensive, 142 vs 146 sessions using one) but one model counted
+about 270 automated review sessions as interactive, doubling the denominator.
+The prompt now separates interactive from automated sessions by `entrypoint`
+(Claude Code) and `originator`/`source` (Codex), and the collector leaves
+automated sessions out of bundles.
 
 The renderer derives the visible setup footprint. The model writes none of it:
 
